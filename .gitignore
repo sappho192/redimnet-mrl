@@ -211,3 +211,6 @@ checkpoints/
 logs/
 *.backup
 training*.log
+
+# Weights & Biases
+wandb/
