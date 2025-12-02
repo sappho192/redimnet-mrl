@@ -2,14 +2,14 @@
 
 # Model architecture
 model:
-  name: 'M'  # ReDimNet model variant (S, M, L, or b0-b6)
+  name: 'b2'  # ReDimNet model variant (S, M, L, or b0-b6)
   embed_dim: 256  # Maximum embedding dimension
   mrl_dims: [64, 128, 192, 256]  # MRL dimensions to train
   mrl_weights: [1.0, 1.0, 1.0, 1.0]  # Weights for each dimension
 
-  # ReDimNet specific
+  # ReDimNet specific - will be set automatically based on model name
   F: 72  # Frequency bins
-  C: 12  # Channel multiplier
+  C: 12  # Channel multiplier (set automatically for b2)
   block_1d_type: 'att'  # '1d block type: att, conv, fc'
   block_2d_type: 'convnext_like'  # 2d block type
   pooling_func: 'ASTP'  # Pooling: ASTP, ASP, or AMSP
@@ -50,8 +50,8 @@ training:
 
 # Data
 data:
-  train_dataset: '/path/to/voxceleb2/dev/aac'
-  val_dataset: '/path/to/voxceleb1/dev'
+  train_dataset: '/home/tikim/dataset/voxceleb2/dev/aac'
+  val_dataset: '/home/tikim/dataset/voxceleb2/dev/aac'
   test_dataset: '/path/to/voxceleb1/test'
 
   sample_rate: 16000

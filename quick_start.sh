@@ -60,27 +60,32 @@ fi
 NUM_SPEAKERS=$(find "$DATA_DIR/voxceleb2/dev/aac" -maxdepth 1 -type d | wc -l)
 echo "✅ Found $NUM_SPEAKERS speaker directories"
 
-# Check Python dependencies
+# Check uv is installed
 echo ""
-echo "🔍 Checking Python dependencies..."
+echo "🔍 Checking uv installation..."
 
-python3 -c "import torch; print(f'PyTorch: {torch.__version__}')" || {
-    echo "❌ PyTorch not installed. Install with: pip install torch torchaudio"
+if ! command -v uv &> /dev/null; then
+    echo "❌ uv not installed. Install with: curl -LsSf https://astral.sh/uv/install.sh | sh"
+    exit 1
+fi
+
+echo "✅ uv installed"
+
+# Sync dependencies
+echo ""
+echo "📦 Syncing dependencies with uv..."
+uv sync || {
+    echo "❌ Failed to sync dependencies"
     exit 1
 }
 
-python3 -c "import torchaudio; print(f'Torchaudio: {torchaudio.__version__}')" || {
-    echo "❌ Torchaudio not installed. Install with: pip install torchaudio"
-    exit 1
-}
-
-echo "✅ Dependencies OK"
+echo "✅ Dependencies synced"
 
 # Check GPU
 echo ""
 echo "🔍 Checking GPU availability..."
-python3 -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
-python3 -c "import torch; print(f'GPU count: {torch.cuda.device_count()}') if torch.cuda.is_available() else None"
+uv run python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+uv run python -c "import torch; print(f'GPU count: {torch.cuda.device_count()}') if torch.cuda.is_available() else None"
 
 # Update config
 echo ""
@@ -105,7 +110,7 @@ echo "✅ Config updated with data paths"
 echo ""
 echo "🧪 Testing data loading..."
 
-python3 << PYEOF
+uv run python << PYEOF
 import sys
 sys.path.insert(0, '$(dirname "$0")')
 from dataset import VoxCelebDataset
@@ -117,11 +122,11 @@ try:
         augmentation=False
     )
     print(f"✅ Dataset loaded: {len(dataset)} utterances")
-    
+
     # Try loading one sample
     waveform, label = dataset[0]
     print(f"✅ Sample shape: {waveform.shape}")
-    
+
 except Exception as e:
     print(f"❌ Error loading dataset: {e}")
     sys.exit(1)
@@ -141,7 +146,7 @@ echo ""
 echo "You can now start training with:"
 echo ""
 echo "  cd $(dirname "$0")"
-echo "  python train.py --config config.yaml"
+echo "  uv run python train.py --config config.yaml"
 echo ""
 echo "Training will take approximately:"
 echo "  - Stage 1 (5 epochs): ~1 day"

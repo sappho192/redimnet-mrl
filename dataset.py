@@ -85,15 +85,10 @@ class VoxCelebDataset(Dataset):
                           list(speaker_dir.rglob('*.m4a'))
 
             for audio_file in audio_files:
-                # Check if file is valid
-                try:
-                    info = torchaudio.info(str(audio_file))
-                    if info.num_frames >= self.min_samples:
-                        self.audio_files.append(audio_file)
-                        self.labels.append(speaker_idx)
-                except Exception as e:
-                    # Skip corrupted files
-                    continue
+                # Add all files - validation will happen during loading
+                # Skip duration check here for performance
+                self.audio_files.append(audio_file)
+                self.labels.append(speaker_idx)
 
     def __len__(self):
         return len(self.audio_files)

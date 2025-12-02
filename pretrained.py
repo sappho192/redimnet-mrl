@@ -17,10 +17,12 @@ from model import ReDimNetMRL, MatryoshkaProjection
 
 
 # Model configurations for different variants
+# Note: These are approximate. The actual architecture will be extracted from
+# the pretrained model when available.
 MODEL_CONFIGS = {
     'b0': {'F': 72, 'C': 8, 'out_channels': 384},
     'b1': {'F': 72, 'C': 10, 'out_channels': 448},
-    'b2': {'F': 72, 'C': 12, 'out_channels': 512},
+    'b2': {'F': 72, 'C': 16, 'out_channels': 512},  # Corrected: actual b2 uses C=16
     'b3': {'F': 72, 'C': 12, 'out_channels': 512},  # Different stages_setup
     'b4': {'F': 72, 'C': 14, 'out_channels': 576},
     'b5': {'F': 72, 'C': 16, 'out_channels': 640},
@@ -140,21 +142,28 @@ def create_mrl_from_pretrained(
         )
         return mrl_model.to(device)
 
-    # Get model configuration
-    config = MODEL_CONFIGS.get(model_name, MODEL_CONFIGS['M'])
+    # Extract actual configuration from pretrained model
+    # This is more reliable than using hardcoded MODEL_CONFIGS
+    backbone = pretrained.backbone
 
-    # Create MRL model with same architecture
+    print(f"Extracting architecture from pretrained model:")
+    print(f"  C={backbone.C}, F={backbone.F}")
+    print(f"  block_1d_type={backbone.block_1d_type}")
+    print(f"  block_2d_type={backbone.block_2d_type}")
+
+    # Create MRL model with same architecture as pretrained
     mrl_model = ReDimNetMRL(
         embed_dim=embed_dim,
         mrl_dims=mrl_dims,
-        F=config['F'],
-        C=config['C'],
-        out_channels=config['out_channels'],
+        F=backbone.F,
+        C=backbone.C,
+        out_channels=512,  # Standard for most models
         # Copy other settings from pretrained model
-        block_1d_type=pretrained.backbone.block_1d_type,
-        block_2d_type=pretrained.backbone.block_2d_type,
+        block_1d_type=backbone.block_1d_type,
+        block_2d_type=backbone.block_2d_type,
         pooling_func=pretrained.pool.__class__.__name__,
         feat_type='pt',  # Assume PyTorch features
+        stages_setup=backbone.stages_setup,
     )
     mrl_model = mrl_model.to(device)
 

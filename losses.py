@@ -155,7 +155,12 @@ class AAMSoftmax(nn.Module):
         """
         # Normalize embeddings and weights
         embeddings_normalized = F.normalize(embeddings, p=2, dim=1)
-        weight_normalized = F.normalize(self.weight, p=2, dim=1)
+
+        # Support MRL: Use only first N dimensions of weight matrix
+        # where N = embedding dimension
+        emb_dim = embeddings.shape[1]
+        weight_slice = self.weight[:, :emb_dim]  # [num_classes, emb_dim]
+        weight_normalized = F.normalize(weight_slice, p=2, dim=1)
 
         # Cosine similarity: [B, num_classes]
         cosine = F.linear(embeddings_normalized, weight_normalized)

@@ -1,0 +1,17 @@
+[project]
+name = "redimnet-mrl"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "numpy>=1.20.0",
+    "pyyaml>=6.0",
+    "scipy>=1.16.3",
+    "tensorboard>=2.8.0",
+    "torch>=2.0.0",
+    "torchaudio>=2.0.0",
+    "torchcodec>=0.8.1",
+    "tqdm>=4.60.0",
+    "wandb>=0.12.0",
+]
