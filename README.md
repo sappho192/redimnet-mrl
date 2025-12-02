@@ -2,9 +2,9 @@
 
 **Production-ready multi-resolution speaker embeddings with ReDimNet architecture**
 
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
-[![PyTorch](https://img.shields.io/badge/pytorch-2.0+-red.svg)](https://pytorch.org/)
-[![License](https://img.shields.io/badge/license-Apache%202.0-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.12+-blue.svg)](https://www.python.org/downloads/)
+[![PyTorch](https://img.shields.io/badge/pytorch-2.9+-red.svg)](https://pytorch.org/)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
 ---
 
