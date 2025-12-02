@@ -50,9 +50,9 @@ training:
 
 # Data
 data:
-  train_dataset: '/home/tikim/dataset/voxceleb2/dev/aac'
-  val_dataset: '/home/tikim/dataset/voxceleb2/dev/aac'
-  test_dataset: '/path/to/voxceleb1/test'
+  train_dataset: '/home/tikim/dataset/voxceleb2/dev/aac'  # VoxCeleb2 dev (5994 speakers)
+  val_dataset: '/home/tikim/dataset/voxceleb/dev/wav'     # VoxCeleb1 dev (1251 speakers)
+  test_dataset: '/home/tikim/dataset/voxceleb/test/wav'   # VoxCeleb1 test (40 speakers)
 
   sample_rate: 16000
   chunk_duration: 3.0  # seconds
