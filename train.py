@@ -16,6 +16,11 @@ from pathlib import Path
 import sys
 from tqdm import tqdm
 import numpy as np
+import os
+from dotenv import load_dotenv
+
+# Load environment variables (including WANDB_API_KEY)
+load_dotenv()
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent))
@@ -57,7 +62,7 @@ class Trainer:
         self.train_loader, self.val_loader = self._build_dataloaders()
 
         # Setup logging
-        self.writer = self._setup_logging()
+        self.writer, self.use_wandb = self._setup_logging()
 
         # Training state
         self.epoch = 0
@@ -268,17 +273,33 @@ class Trainer:
             writer = None
 
         # Weights & Biases
+        use_wandb = False
         if log_cfg['wandb']:
             try:
                 import wandb
+
+                # Initialize wandb
                 wandb.init(
                     project=log_cfg['wandb_project'],
                     config=self.config,
+                    name=log_cfg.get('wandb_run_name', None),
+                    tags=log_cfg.get('wandb_tags', []),
                 )
-            except ImportError:
-                print("wandb not installed, skipping W&B logging")
 
-        return writer
+                # Watch model for gradients (optional)
+                if log_cfg.get('wandb_watch_model', False):
+                    wandb.watch(self.model, log='all', log_freq=100)
+
+                use_wandb = True
+                print(f"✅ Weights & Biases initialized")
+                print(f"   Project: {log_cfg['wandb_project']}")
+                print(f"   Dashboard: {wandb.run.url}")
+
+            except ImportError:
+                print("⚠️ wandb not installed, skipping W&B logging")
+                print("   Install with: pip install wandb")
+
+        return writer, use_wandb
 
     def train_epoch(self):
         """Train for one epoch."""
@@ -341,6 +362,16 @@ class Trainer:
             for key, val in avg_losses.items():
                 self.writer.add_scalar(f'train/{key}', val, self.epoch)
 
+        # Wandb logging
+        if self.use_wandb:
+            import wandb
+            wandb.log({
+                'train/loss': avg_loss,
+                'train/lr': self.optimizer.param_groups[0]['lr'],
+                'epoch': self.epoch,
+                **{f'train/{k}': v for k, v in avg_losses.items()}
+            }, step=self.epoch)
+
         return avg_loss, avg_losses
 
     @torch.no_grad()
@@ -376,6 +407,14 @@ class Trainer:
             for key, val in avg_val_losses.items():
                 self.writer.add_scalar(f'val/{key}', val, self.epoch)
 
+        # Wandb logging
+        if self.use_wandb:
+            import wandb
+            wandb.log({
+                'val/loss': avg_val_loss,
+                **{f'val/{k}': v for k, v in avg_val_losses.items()}
+            }, step=self.epoch)
+
         return avg_val_loss, avg_val_losses
 
     def save_checkpoint(self, is_best=False):
@@ -403,6 +442,12 @@ class Trainer:
         if is_best:
             torch.save(checkpoint, save_dir / 'best.pt')
             print(f"✅ Saved best model (val_loss: {self.best_val_loss:.4f})")
+
+            # Log best model to wandb
+            if self.use_wandb:
+                import wandb
+                wandb.run.summary["best_val_loss"] = self.best_val_loss
+                wandb.run.summary["best_epoch"] = self.epoch
 
     def train(self):
         """Main training loop."""

@@ -83,8 +83,11 @@ hardware:
 logging:
   log_dir: 'logs/mrl_redimnet'
   tensorboard: true
-  wandb: false  # Weights & Biases integration
+  wandb: true  # Weights & Biases integration
   wandb_project: 'mrl-speaker-recognition'
+  wandb_run_name: null  # Auto-generated if not specified
+  wandb_tags: ['redimnet-b2', 'mrl', 'voxceleb2']
+  wandb_watch_model: false  # Log gradients/parameters (expensive)
 
   # Checkpoint
   save_dir: 'checkpoints/mrl_redimnet'
