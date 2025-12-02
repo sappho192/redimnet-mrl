@@ -1,0 +1,132 @@
+# Optimized Configuration for RTX 5060 Ti 16GB
+# This config is tuned for maximum efficiency on your hardware
+
+# Model architecture
+model:
+  name: 'b2'  # ReDimNet variant
+  embed_dim: 256  # Maximum embedding dimension
+  mrl_dims: [64, 128, 192, 256]  # MRL dimensions
+  mrl_weights: [1.0, 1.0, 1.0, 1.0]  # Equal weighting
+
+  # ReDimNet specific
+  F: 72  # Frequency bins
+  C: 12  # Channel multiplier
+  block_1d_type: 'att'
+  block_2d_type: 'convnext_like'
+  pooling_func: 'ASTP'
+  out_channels: 512
+  feat_type: 'pt'
+
+# Loss function
+loss:
+  type: 'AAMSoftmax'  # ArcFace
+  margin: 0.2
+  scale: 30.0
+  easy_margin: false
+
+# Training (optimized for 16GB GPU)
+training:
+  num_epochs: 100
+  batch_size: 48  # Sweet spot for 16GB - uses ~6-8GB
+  accumulation_steps: 1  # No accumulation needed
+  max_grad_norm: 1.0
+
+  # Learning rate
+  learning_rate: 0.0001
+  lr_scheduler: 'cosine'
+  warmup_epochs: 5
+  min_lr: 0.000001
+
+  # Optimizer
+  optimizer: 'AdamW'
+  weight_decay: 0.0001
+  betas: [0.9, 0.999]
+
+  # Regularization
+  dropout: 0.0
+  feat_agg_dropout: 0.0
+
+# Data
+data:
+  train_dataset: '/data/voxceleb2/dev/aac'  # Update this path
+  val_dataset: '/data/voxceleb1/dev/wav'    # Update this path
+  test_dataset: '/data/voxceleb1/test/wav'
+
+  sample_rate: 16000
+  chunk_duration: 3.0  # seconds
+  min_duration: 1.0
+
+  # Augmentation
+  augmentation: true
+  noise_snr_range: [20, 40]
+  volume_range: [-3, 3]
+
+  # DataLoader (optimized for typical Linux server)
+  num_workers: 8  # Adjust based on CPU cores
+  pin_memory: true
+  prefetch_factor: 2
+
+# Hardware (optimized for RTX 5060 Ti 16GB)
+hardware:
+  device: 'cuda:0'
+  mixed_precision: true  # Essential - saves 30-40% memory
+  compile: false  # Set true if PyTorch 2.0+
+
+  # Multi-GPU (for future expansion)
+  distributed: false
+  world_size: 1
+  rank: 0
+
+# Logging & Checkpointing
+logging:
+  log_dir: 'logs/mrl_redimnet_5060ti'
+  tensorboard: true
+  wandb: false
+
+  # Checkpoint
+  save_dir: 'checkpoints/mrl_redimnet_5060ti'
+  save_interval: 5
+  keep_last_n: 3
+  save_best_only: true
+
+  # Logging frequency
+  log_interval: 10
+  val_interval: 1
+
+# Evaluation
+evaluation:
+  metrics: ['eer', 'mindcf']
+  eer_threshold: 'auto'
+  test_pairs: '/data/voxceleb1/veri_test2.txt'
+  eval_all_dims: true
+
+# Reproducibility
+seed: 42
+deterministic: false
+
+# Advanced (pretrained model loading)
+advanced:
+  # Use pretrained model from torch.hub
+  use_pretrained: true
+  model_name: 'b2'  # Best balance for 16GB GPU
+  train_type: 'ft_lm'  # Use fine-tuned for best starting point
+  pretrained_dataset: 'vox2'
+
+  # Two-stage training (recommended)
+  freeze_backbone_epochs: 5  # Stage 1: Train projection only
+                              # Stage 2: Fine-tune entire model
+
+  # Progressive training (experimental)
+  progressive_mrl: false
+  progressive_schedule: [10, 20, 30]
+
+  # Mixed dataset training
+  mixed_datasets: false
+  dataset_sampling_weights: [1.0]
+
+# Notes for RTX 5060 Ti 16GB:
+# - batch_size=48 uses ~6-8GB VRAM (comfortable headroom)
+# - Can increase to 64 if you want (~8-10GB)
+# - Can decrease to 32 if you run other processes (~4-6GB)
+# - Training time: ~7-10 days for 100 epochs
+# - Memory is NOT a bottleneck for this GPU!

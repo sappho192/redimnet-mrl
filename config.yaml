@@ -1,0 +1,135 @@
+# MRL-ReDimNet Training Configuration
+
+# Model architecture
+model:
+  name: 'M'  # ReDimNet model variant (S, M, L, or b0-b6)
+  embed_dim: 256  # Maximum embedding dimension
+  mrl_dims: [64, 128, 192, 256]  # MRL dimensions to train
+  mrl_weights: [1.0, 1.0, 1.0, 1.0]  # Weights for each dimension
+
+  # ReDimNet specific
+  F: 72  # Frequency bins
+  C: 12  # Channel multiplier
+  block_1d_type: 'att'  # '1d block type: att, conv, fc'
+  block_2d_type: 'convnext_like'  # 2d block type
+  pooling_func: 'ASTP'  # Pooling: ASTP, ASP, or AMSP
+  out_channels: 512  # Backbone output channels
+  feat_type: 'pt'  # Feature type: pt, pt_mel, tf, tf_mel
+
+# Loss function
+loss:
+  type: 'AAMSoftmax'  # AAMSoftmax, SubCenter, or Triplet
+  margin: 0.2  # Angular margin
+  scale: 30.0  # Feature scale
+  easy_margin: false  # Use easy margin variant
+
+  # SubCenter specific (if type == 'SubCenter')
+  num_subcenters: 3
+
+# Training
+training:
+  num_epochs: 100
+  batch_size: 64
+  accumulation_steps: 1  # Gradient accumulation
+  max_grad_norm: 1.0  # Gradient clipping
+
+  # Learning rate
+  learning_rate: 0.0001
+  lr_scheduler: 'cosine'  # cosine, step, or exponential
+  warmup_epochs: 5
+  min_lr: 0.000001
+
+  # Optimizer
+  optimizer: 'AdamW'
+  weight_decay: 0.0001
+  betas: [0.9, 0.999]
+
+  # Regularization
+  dropout: 0.0
+  feat_agg_dropout: 0.0
+
+# Data
+data:
+  train_dataset: '/path/to/voxceleb2/dev/aac'
+  val_dataset: '/path/to/voxceleb1/dev'
+  test_dataset: '/path/to/voxceleb1/test'
+
+  sample_rate: 16000
+  chunk_duration: 3.0  # seconds
+  min_duration: 1.0  # minimum audio duration
+
+  # Augmentation
+  augmentation: true
+  noise_snr_range: [20, 40]  # dB
+  volume_range: [-3, 3]  # dB
+
+  # DataLoader
+  num_workers: 8
+  pin_memory: true
+  prefetch_factor: 2
+
+# Hardware
+hardware:
+  device: 'cuda:0'
+  mixed_precision: true  # Use automatic mixed precision
+  compile: false  # Use torch.compile (PyTorch 2.0+)
+
+  # Multi-GPU (if available)
+  distributed: false
+  world_size: 1
+  rank: 0
+
+# Logging & Checkpointing
+logging:
+  log_dir: 'logs/mrl_redimnet'
+  tensorboard: true
+  wandb: false  # Weights & Biases integration
+  wandb_project: 'mrl-speaker-recognition'
+
+  # Checkpoint
+  save_dir: 'checkpoints/mrl_redimnet'
+  save_interval: 5  # epochs
+  keep_last_n: 3  # Keep last N checkpoints
+  save_best_only: true  # Save only best model based on val metric
+
+  # Logging frequency
+  log_interval: 10  # steps
+  val_interval: 1  # epochs
+
+# Evaluation
+evaluation:
+  metrics: ['eer', 'mindcf']  # Metrics to compute
+  eer_threshold: 'auto'  # EER threshold or 'auto'
+
+  # Test pairs
+  test_pairs: '/path/to/voxceleb1_test_pairs.txt'
+
+  # Multi-dimension evaluation
+  eval_all_dims: true  # Evaluate all MRL dimensions
+
+# Reproducibility
+seed: 42
+deterministic: false  # Enable cudnn deterministic mode (slower but reproducible)
+
+# Advanced
+advanced:
+  # Transfer learning from official pretrained models
+  use_pretrained: true  # Load pretrained weights from torch.hub
+  model_name: 'b2'  # Model variant: b0, b1, b2, b3, b4, b5, b6, M
+  train_type: 'ptn'  # ptn (pretrained), ft_lm (large-margin), ft_mix (mixed datasets)
+  pretrained_dataset: 'vox2'  # vox2 or vb2+vox2+cnc
+
+  # Two-stage training (recommended with pretrained models)
+  freeze_backbone_epochs: 5  # Stage 1: Train projection only for N epochs
+                              # Stage 2: Unfreeze and fine-tune entire model
+
+  # Alternative: Load from local checkpoint
+  pretrained_checkpoint: null  # Path to local .pt file (overrides torch.hub)
+
+  # Progressive training
+  progressive_mrl: false  # Start with high dims, add lower dims gradually
+  progressive_schedule: [10, 20, 30]  # Epochs to add new dimensions
+
+  # Mixed dataset training
+  mixed_datasets: false
+  dataset_sampling_weights: [1.0]  # Weights for multi-dataset sampling

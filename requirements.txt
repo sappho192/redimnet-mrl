@@ -1,0 +1,22 @@
+# Core dependencies
+torch>=2.0.0
+torchaudio>=2.0.0
+numpy>=1.20.0
+
+# Training & data
+pyyaml>=6.0
+tqdm>=4.60.0
+
+# Logging & visualization
+tensorboard>=2.8.0
+
+# Optional: Weights & Biases (for experiment tracking)
+# wandb>=0.12.0
+
+# Optional: Pretrained model loading via torch.hub
+# (No additional dependencies needed, uses torch.hub)
+
+# Development dependencies (optional)
+# pytest>=7.0.0
+# black>=22.0.0
+# flake8>=4.0.0
