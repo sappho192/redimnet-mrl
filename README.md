@@ -14,12 +14,12 @@ A **single speaker recognition model** that produces embeddings at **multiple re
 
 ### Key Features
 
-✨ **Multi-Resolution Embeddings**: Extract 64D (fast), 128D (balanced), or 256D (accurate) from one model
-🔥 **Pretrained Model Support**: Leverage official ReDimNet models (b0-b6) as starting points
-⚡ **Production Ready**: Complete training pipeline with checkpointing, logging, and evaluation
-🎯 **State-of-the-Art**: Built on ReDimNet achieving 0.835% EER on VoxCeleb1-O
-💾 **Memory Efficient**: Optimized for GPUs from 12GB to 80GB VRAM
-📊 **Well Documented**: Comprehensive guides for training, evaluation, and deployment
+✨ **Multi-Resolution Embeddings**: Extract 64D (fast), 128D (balanced), or 256D (accurate) from one model  
+🔥 **Pretrained Model Support**: Leverage official ReDimNet models (b0-b6) as starting points  
+⚡ **Production Ready**: Complete training pipeline with checkpointing, logging, and evaluation  
+🎯 **State-of-the-Art**: Built on ReDimNet achieving 0.835% EER on VoxCeleb1-O  
+💾 **Memory Efficient**: Optimized for GPUs from 12GB to 80GB VRAM  
+📊 **Well Documented**: Comprehensive guides for training, evaluation, and deployment  
 
 ---
 
@@ -70,7 +70,7 @@ print(f"Accurate embedding: {emb_256d.shape}") # [1, 256]
 ### Prerequisites
 
 **Hardware**:
-- GPU: 12GB+ VRAM (16GB recommended, RTX 5060 Ti is perfect!)
+- GPU: 12GB+ VRAM (Over 16GB is recommended)
 - Storage: 100GB free space
 - RAM: 16GB+
 
@@ -155,7 +155,7 @@ python train.py --config config.yaml
 
 ## 🎯 Usage Examples
 
-### 1. Load Pretrained Model (No Training)
+### 1. Load Original Pretrained Model (Not MRL)
 
 ```python
 from mrl import load_pretrained_redimnet
@@ -217,7 +217,7 @@ emb_fast = mrl_model(audio, target_dim=64)
 # Balanced mode: 128D (1.5x faster, 90% accuracy)
 emb_balanced = mrl_model(audio, target_dim=128)
 
-# Accurate mode: 256D (baseline speed, 100% accuracy)
+# Accurate mode: 256D (baseline speed, over 90% accuracy)
 emb_accurate = mrl_model(audio, target_dim=256)
 ```
 
@@ -268,7 +268,7 @@ This forces the model to prioritize important information in early dimensions.
 
 ---
 
-## 🎨 Model Variants
+## 🎨 Model Variants (Original ReDimNet) to be used
 
 | Variant | Parameters | VoxCeleb1-O EER | Speed | Use Case |
 |---------|-----------|-----------------|-------|----------|
@@ -535,7 +535,9 @@ If you use this code in your research, please cite:
 - **Matryoshka Representation Learning**: [arXiv:2205.13147](https://arxiv.org/abs/2205.13147)
 - **ReDimNet**: [arXiv:2407.18223](https://arxiv.org/abs/2407.18223)
 - **ArcFace**: Deng et al., "ArcFace: Additive Angular Margin Loss" (CVPR 2019)
-- **VoxCeleb**: Nagrani et al., "VoxCeleb: Large-scale speaker verification" (2020)
+- **VoxCeleb**: A. Nagrani, J. S. Chung, A. Zisserman, "[VoxCeleb: a large-scale speaker identification dataset](http://www.robots.ox.ac.uk/~vgg/publications/2017/Nagrani17/nagrani17.pdf)"
+- **VoxCeleb2**: J. S. Chung, A. Nagrani, A. Zisserman, "[Deep Speaker Recognition](http://www.robots.ox.ac.uk/~vgg/publications/2018/Chung18a/chung18a.pdf)"
+- A. Nagrani, J. S. Chung, W. Xie, A. Zisserman, "[VoxCeleb: Large-scale speaker verification in the wild](http://www.robots.ox.ac.uk/~vgg/publications/2019/Nagrani19/nagrani19.pdf)"
 
 ### Code & Resources
 - **HuggingFace MRL Blog**: https://huggingface.co/blog/matryoshka
@@ -564,7 +566,7 @@ Please:
 
 ## 📝 License
 
-This implementation follows the same license as the base ReDimNet repository (Apache 2.0).
+This implementation is based on MIT License.
 
 ---
 
