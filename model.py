@@ -3,18 +3,14 @@ MRL-enabled ReDimNet model for speaker recognition.
 
 This module provides a Matryoshka Representation Learning wrapper around
 the original ReDimNet architecture, enabling multi-resolution embeddings.
+
+Note: This module uses torch.hub to load the official ReDimNet model,
+so you don't need to have the ReDimNet repository installed locally.
 """
-
-import sys
-from pathlib import Path
-
-# Add parent directory to path to import redimnet
-sys.path.insert(0, str(Path(__file__).parent.parent / "RD-1376"))
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from redimnet.model import ReDimNetWrap
 
 
 class MatryoshkaProjection(nn.Module):
@@ -136,11 +132,23 @@ class ReDimNetMRL(nn.Module):
 
         # Create base ReDimNet without final projection
         # We'll replace the projection layer with MatryoshkaProjection
-        self.backbone = ReDimNetWrap(
-            embed_dim=embed_dim,
-            num_classes=None,  # No classification head by default
-            **kwargs
-        )
+        # Note: ReDimNet is loaded via torch.hub in pretrained.py
+        # For standalone usage, must use create_mrl_from_pretrained()
+        # This constructor is mainly for internal use
+        try:
+            from redimnet.model import ReDimNetWrap
+            self.backbone = ReDimNetWrap(
+                embed_dim=embed_dim,
+                num_classes=None,  # No classification head by default
+                **kwargs
+            )
+        except ImportError:
+            raise ImportError(
+                "ReDimNetWrap not found. For standalone usage, please use:\n"
+                "  from redimnet_mrl import create_mrl_from_pretrained\n"
+                "  model = create_mrl_from_pretrained('b2', 'ft_lm', 'vox2')\n"
+                "\nThis will automatically load ReDimNet via torch.hub."
+            )
 
         # Get pooling output dimension from backbone
         pool_out_dim = self.backbone.pool_out_dim
