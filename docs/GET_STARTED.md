@@ -219,7 +219,6 @@ If low utilization:
 **Development**:
 8. 🤝 [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
 9. 📝 [CHANGELOG.md](CHANGELOG.md) - Version history
-10. 🔄 [MIGRATION_NOTES.md](MIGRATION_NOTES.md) - Migration details
 
 ---
 

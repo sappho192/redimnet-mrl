@@ -138,17 +138,17 @@ python train.py --config config.yaml
 
 | Guide | Description | When to Read |
 |-------|-------------|--------------|
-| **[PRETRAINED_GUIDE.md](PRETRAINED_GUIDE.md)** | Using pretrained ReDimNet models (b0-b6) | Before training |
-| **[DATA_REQUIREMENTS.md](DATA_REQUIREMENTS.md)** | Dataset download, preparation, and requirements | Before training |
-| **[GPU_REQUIREMENTS.md](GPU_REQUIREMENTS.md)** | Memory usage, batch size optimization | Before training |
-| **[LORA_SURVEY.md](LORA_SURVEY.md)** | LoRA for parameter-efficient fine-tuning | Advanced usage |
-| **[CROSS_MODEL_DISTILLATION_ANALYSIS.md](CROSS_MODEL_DISTILLATION_ANALYSIS.md)** | Model ensemble and distillation strategies | Advanced usage |
+| **[PRETRAINED_GUIDE.md](docs/PRETRAINED_GUIDE.md)** | Using pretrained ReDimNet models (b0-b6) | Before training |
+| **[DATA_REQUIREMENTS.md](docs/DATA_REQUIREMENTS.md)** | Dataset download, preparation, and requirements | Before training |
+| **[GPU_REQUIREMENTS.md](docs/GPU_REQUIREMENTS.md)** | Memory usage, batch size optimization | Before training |
+| **[LORA_SURVEY.md](docs/LORA_SURVEY.md)** | LoRA for parameter-efficient fine-tuning | Advanced usage |
+| **[CROSS_MODEL_DISTILLATION_ANALYSIS.md](docs/CROSS_MODEL_DISTILLATION_ANALYSIS.md)** | Model ensemble and distillation strategies | Advanced usage |
 
 ### Quick Reference
 
-- **Hardware requirements**: See [GPU_REQUIREMENTS.md](GPU_REQUIREMENTS.md)
-- **Data download**: See [DATA_REQUIREMENTS.md](DATA_REQUIREMENTS.md)
-- **Pretrained models**: See [PRETRAINED_GUIDE.md](PRETRAINED_GUIDE.md)
+- **Hardware requirements**: See [GPU_REQUIREMENTS.md](docs/GPU_REQUIREMENTS.md)
+- **Data download**: See [DATA_REQUIREMENTS.md](docs/DATA_REQUIREMENTS.md)
+- **Pretrained models**: See [PRETRAINED_GUIDE.md](docs/PRETRAINED_GUIDE.md)
 - **Training examples**: See [example_pretrained.py](example_pretrained.py)
 
 ---
@@ -436,11 +436,15 @@ mrl/
 ├── example_pretrained.py           # Usage examples
 │
 ├── README.md                       # This file
-├── PRETRAINED_GUIDE.md             # Pretrained model guide
-├── DATA_REQUIREMENTS.md            # Dataset requirements
-├── GPU_REQUIREMENTS.md             # GPU memory analysis
-├── LORA_SURVEY.md                  # LoRA feasibility survey
-└── CROSS_MODEL_DISTILLATION_ANALYSIS.md  # Model fusion analysis
+├── docs/
+│   ├── PRETRAINED_GUIDE.md         # Pretrained model guide
+│   ├── DATA_REQUIREMENTS.md        # Dataset requirements
+│   ├── GPU_REQUIREMENTS.md         # GPU memory analysis
+│   ├── LORA_SURVEY.md              # LoRA feasibility survey
+│   ├── CROSS_MODEL_DISTILLATION_ANALYSIS.md  # Model fusion analysis
+│   ├── GET_STARTED.md              # Quick start guide
+│   ├── INSTALLATION.md             # Installation guide
+│   └── SUMMARY.md                  # Project summary
 ```
 
 ---
@@ -495,8 +499,8 @@ mrl/
 
 ### Potential Research Directions
 
-1. **LoRA + MRL**: Parameter-efficient fine-tuning (see [LORA_SURVEY.md](LORA_SURVEY.md))
-2. **Cross-model distillation**: Learn from ensemble of b0-b6 (see [CROSS_MODEL_DISTILLATION_ANALYSIS.md](CROSS_MODEL_DISTILLATION_ANALYSIS.md))
+1. **LoRA + MRL**: Parameter-efficient fine-tuning (see [LORA_SURVEY.md](docs/LORA_SURVEY.md))
+2. **Cross-model distillation**: Learn from ensemble of b0-b6 (see [CROSS_MODEL_DISTILLATION_ANALYSIS.md](docs/CROSS_MODEL_DISTILLATION_ANALYSIS.md))
 3. **Progressive MRL**: Start with high dims, add lower dims gradually
 4. **Multi-task MRL**: Joint training for speaker + emotion + language
 5. **Extreme low dimensions**: Push to 32D, 16D for IoT devices
@@ -578,9 +582,9 @@ This implementation follows the same license as the base ReDimNet repository (Ap
 - [ ] 100GB+ free disk space
 - [ ] VoxCeleb2 downloaded (or download link ready)
 - [ ] PyTorch 2.0+ installed
-- [ ] Read [PRETRAINED_GUIDE.md](PRETRAINED_GUIDE.md)
-- [ ] Read [DATA_REQUIREMENTS.md](DATA_REQUIREMENTS.md)
-- [ ] Read [GPU_REQUIREMENTS.md](GPU_REQUIREMENTS.md) for your GPU
+- [ ] Read [PRETRAINED_GUIDE.md](docs/PRETRAINED_GUIDE.md)
+- [ ] Read [DATA_REQUIREMENTS.md](docs/DATA_REQUIREMENTS.md)
+- [ ] Read [GPU_REQUIREMENTS.md](docs/GPU_REQUIREMENTS.md) for your GPU
 - [ ] Config file updated with your data paths
 
 **Ready to start?**
