@@ -41,12 +41,12 @@ training:
 
   # Optimizer
   optimizer: 'AdamW'
-  weight_decay: 0.0001
+  weight_decay: 0.001  # Increased from 0.0001 for better regularization
   betas: [0.9, 0.999]
 
   # Regularization
-  dropout: 0.0
-  feat_agg_dropout: 0.0
+  dropout: 0.1  # Add dropout to prevent overfitting
+  feat_agg_dropout: 0.1  # Add dropout in feature aggregation
 
 # Data
 data:
@@ -123,8 +123,8 @@ advanced:
   pretrained_dataset: 'vox2'  # vox2 or vb2+vox2+cnc
 
   # Two-stage training (recommended with pretrained models)
-  freeze_backbone_epochs: 5  # Stage 1: Train projection only for N epochs
-                              # Stage 2: Unfreeze and fine-tune entire model
+  freeze_backbone_epochs: 15  # Stage 1: Train projection only for N epochs (extended to prevent overfitting)
+                               # Stage 2: Unfreeze and fine-tune entire model
 
   # Alternative: Load from local checkpoint
   pretrained_checkpoint: null  # Path to local .pt file (overrides torch.hub)
