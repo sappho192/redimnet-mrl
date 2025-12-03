@@ -181,10 +181,10 @@ def test_all_dimensions_batch(model, mrl_dims: List[int], device='cpu'):
         print(f"  {dim}D: shape={emb.shape}, norm={emb[0].norm(p=2).item():.4f}")
 
 
-def test_speaker_similarity(model, dim=128, device='cpu'):
-    """Test speaker similarity computation."""
+def test_speaker_similarity(model, mrl_dims: List[int], device='cpu'):
+    """Test speaker similarity computation across all MRL dimensions."""
     print(f"\n{'='*70}")
-    print(f"Testing Speaker Similarity (using {dim}D embeddings)")
+    print(f"Testing Speaker Similarity Across All Dimensions")
     print(f"{'='*70}")
 
     model.eval()
@@ -197,34 +197,60 @@ def test_speaker_similarity(model, dim=128, device='cpu'):
     audio1_diff = torch.randn(1, 1, 48000).to(device)
     audio2_diff = torch.randn(1, 1, 48000).to(device)
 
-    with torch.no_grad():
-        # Same speaker
-        emb1_same = model(audio1_same, target_dim=dim)
-        emb2_same = model(audio2_same, target_dim=dim)
+    print(f"\nTest setup:")
+    print(f"  Same speaker: utterance 2 = utterance 1 + 10% noise")
+    print(f"  Different speakers: completely different random audio")
 
-        # Different speakers
-        emb1_diff = model(audio1_diff, target_dim=dim)
-        emb2_diff = model(audio2_diff, target_dim=dim)
+    results = {}
 
-        # Normalize embeddings
-        emb1_same = F.normalize(emb1_same, p=2, dim=1)
-        emb2_same = F.normalize(emb2_same, p=2, dim=1)
-        emb1_diff = F.normalize(emb1_diff, p=2, dim=1)
-        emb2_diff = F.normalize(emb2_diff, p=2, dim=1)
+    for dim in mrl_dims:
+        with torch.no_grad():
+            # Same speaker
+            emb1_same = model(audio1_same, target_dim=dim)
+            emb2_same = model(audio2_same, target_dim=dim)
 
-        # Compute cosine similarity
-        sim_same = F.cosine_similarity(emb1_same, emb2_same).item()
-        sim_diff = F.cosine_similarity(emb1_diff, emb2_diff).item()
+            # Different speakers
+            emb1_diff = model(audio1_diff, target_dim=dim)
+            emb2_diff = model(audio2_diff, target_dim=dim)
 
-    print(f"\nCosine similarity scores:")
-    print(f"  Same speaker (synthetic): {sim_same:.4f}")
-    print(f"  Different speakers (synthetic): {sim_diff:.4f}")
-    print(f"  Difference: {sim_same - sim_diff:.4f}")
+            # Normalize embeddings
+            emb1_same = F.normalize(emb1_same, p=2, dim=1)
+            emb2_same = F.normalize(emb2_same, p=2, dim=1)
+            emb1_diff = F.normalize(emb1_diff, p=2, dim=1)
+            emb2_diff = F.normalize(emb2_diff, p=2, dim=1)
 
-    if sim_same > sim_diff:
-        print("  [OK] Model correctly distinguishes same vs different speakers")
+            # Compute cosine similarity
+            sim_same = F.cosine_similarity(emb1_same, emb2_same).item()
+            sim_diff = F.cosine_similarity(emb1_diff, emb2_diff).item()
+
+            results[dim] = {
+                'same': sim_same,
+                'diff': sim_diff,
+                'delta': sim_same - sim_diff
+            }
+
+    # Display results in a table
+    print(f"\n{'Dimension':<12} {'Same Spkr':<12} {'Diff Spkr':<12} {'Delta':<12} {'Status':<10}")
+    print("-" * 70)
+
+    for dim in mrl_dims:
+        res = results[dim]
+        status = "[OK]" if res['delta'] > 0 else "[WARN]"
+        print(f"{dim}D{'':<9} {res['same']:<12.4f} {res['diff']:<12.4f} {res['delta']:<12.4f} {status:<10}")
+
+    # Summary
+    print(f"\n{'='*70}")
+    print("Summary:")
+    print(f"  Higher delta means better speaker discrimination")
+    print(f"  Expected: Same speaker similarity > Different speaker similarity")
+
+    # Check if all dimensions show correct behavior
+    all_correct = all(res['delta'] > 0 for res in results.values())
+    if all_correct:
+        print(f"  [OK] All dimensions correctly distinguish same vs different speakers")
     else:
-        print("  [WARN] Model may need more training (same speaker similarity should be higher)")
+        failing_dims = [dim for dim, res in results.items() if res['delta'] <= 0]
+        print(f"  [WARN] Dimensions {failing_dims} may need more training")
 
 
 def compare_checkpoints(checkpoint_dir: Path, config_path: Path, device='cpu'):
@@ -412,7 +438,7 @@ def main():
         test_all_dimensions_batch(model, mrl_dims, device)
 
         # Test 5: Speaker similarity
-        test_speaker_similarity(model, dim=128, device=device)
+        test_speaker_similarity(model, mrl_dims, device=device)
 
         # Test 6: Real audio (if available)
         voxceleb_path = Path("G:/DATASET/voxceleb")
