@@ -36,7 +36,10 @@ A **single speaker recognition model** that produces embeddings at **multiple re
 cd /path/to/single-speaker-detection
 
 # Install dependencies
-pip install torch torchaudio pyyaml tqdm tensorboard
+pip install torch torchaudio pyyaml tqdm tensorboard wandb python-dotenv
+
+# Set up Weights & Biases (optional, for experiment tracking)
+echo "WANDB_API_KEY=your_api_key_here" > .env
 
 # Test installation
 cd mrl
@@ -79,8 +82,9 @@ print(f"Accurate embedding: {emb_256d.shape}") # [1, 256]
 - RAM: 16GB+
 
 **Data**:
-- VoxCeleb2: ~50GB (training)
-- VoxCeleb1: ~10GB (validation)
+- VoxCeleb2 dev: ~50GB (training, 5994 speakers)
+- VoxCeleb1 dev: ~10GB (validation, 1251 speakers - different from training speakers)
+- VoxCeleb1 test: ~1GB (testing, 40 speakers)
 - Download: https://www.robots.ox.ac.uk/~vgg/data/voxceleb/
 
 ### Quick Start Training
@@ -93,19 +97,26 @@ cd mrl
 
 **Option 2: Manual Setup**
 ```bash
-# 1. Download VoxCeleb2
+# 1. Download VoxCeleb datasets
 wget https://thor.robots.ox.ac.uk/~vgg/data/voxceleb/vox1a/vox2_dev_aac.zip
+wget https://thor.robots.ox.ac.uk/~vgg/data/voxceleb/vox1a/vox1_dev_wav.zip
 unzip vox2_dev_aac.zip -d /data/voxceleb2
+unzip vox1_dev_wav.zip -d /data/voxceleb1
 
-# 2. Update config with your data path
+# 2. Set up Weights & Biases (optional)
+echo "WANDB_API_KEY=your_api_key_here" > .env
+
+# 3. Update config with your data paths
 vim config.yaml
 # Set: train_dataset: '/data/voxceleb2/dev/aac'
+# Set: val_dataset: '/data/voxceleb1/dev/wav'
 
-# 3. Start training (uses pretrained b2 as backbone)
+# 4. Start training (uses pretrained b2 as backbone)
 python train.py --config config.yaml
 
-# 4. Monitor progress
+# 5. Monitor progress
 tensorboard --logdir logs/mrl_redimnet
+# Or view Weights & Biases dashboard (URL printed at startup)
 ```
 
 **Option 3: Optimized for Specific GPU**
@@ -319,10 +330,24 @@ training:
   num_epochs: 100
   learning_rate: 0.0001
 
+# Data
+data:
+  train_dataset: '/path/to/voxceleb2/dev/aac'  # VoxCeleb2 dev (5994 speakers)
+  val_dataset: '/path/to/voxceleb1/dev/wav'    # VoxCeleb1 dev (1251 speakers)
+  test_dataset: '/path/to/voxceleb1/test/wav'  # VoxCeleb1 test (40 speakers)
+
 # Hardware
 hardware:
   device: 'cuda:0'
   mixed_precision: true  # Essential - saves 30-40% memory
+
+# Logging & Experiment Tracking
+logging:
+  tensorboard: true
+  wandb: true  # Weights & Biases integration (requires .env with WANDB_API_KEY)
+  wandb_project: 'mrl-speaker-recognition'
+  wandb_tags: ['redimnet-b2', 'mrl', 'voxceleb2']
+  wandb_watch_model: false  # Log gradients/parameters (expensive, disable by default)
 
 # Pretrained model
 advanced:

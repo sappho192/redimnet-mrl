@@ -8,7 +8,8 @@
 ## Quick Answer
 
 **Minimum viable**: Same dataset the pretrained model was trained on (VoxCeleb2)
-**Recommended**: VoxCeleb2 for training + VoxCeleb1 for validation
+**Recommended**: VoxCeleb2 dev for training + VoxCeleb1 dev for validation ✅
+**Why separate datasets**: Following standard speaker recognition practices - validation uses **different speakers** than training to properly evaluate generalization
 **Optional**: Additional datasets for domain robustness
 
 ---
@@ -42,23 +43,30 @@ voxceleb2/dev/aac/
 
 **File Format**:
 - Audio: .m4a (AAC format) or .wav
-- Sample rate: Variable (need to resample to 16kHz)
-- Channels: Mono or stereo (convert to mono)
+- Sample rate: Variable (automatically resampled to 16kHz)
+- Channels: Mono or stereo (automatically converted to mono)
+- **Note**: .m4a files are supported via torchcodec backend (no manual conversion needed)
 
 **Download Size**: ~36GB (compressed)
 **Extracted Size**: ~50GB
 
 ---
 
-### Validation Data: VoxCeleb1
+### Validation Data: VoxCeleb1 (⚠️ Important: Different Speakers)
 
-**Dataset**: VoxCeleb1 Development/Test Set
+**Dataset**: VoxCeleb1 Development Set
 **Link**: https://www.robots.ox.ac.uk/~vgg/data/voxceleb/vox1.html
 
 **Statistics**:
-- **Speakers**: 1,251
+- **Speakers**: 1,251 (completely different from VoxCeleb2 training speakers)
 - **Utterances**: 153,516
 - **Duration**: ~352 hours
+
+**Why separate dataset?**:
+- ✅ Tests **generalization** to unseen speakers
+- ✅ Prevents overfitting to training speakers
+- ✅ Standard practice in speaker recognition research
+- ❌ Using VoxCeleb2 for both training and validation would give misleadingly optimistic metrics
 
 **Used for**:
 - Monitoring training progress (validation loss)
@@ -111,10 +119,19 @@ unzip vox1_test_wav.zip
 wget https://www.robots.ox.ac.uk/~vgg/data/voxceleb/meta/veri_test2.txt
 ```
 
-### Step 2: Convert Audio Format (if needed)
+### Step 2: Audio Format (No Conversion Needed!)
 
-If you have .m4a files, convert to .wav:
+**Good news**: The dataset loader automatically handles .m4a files using torchcodec backend!
 
+No manual conversion needed - just download and use directly.
+
+**What happens automatically**:
+- ✅ .m4a files loaded via torchcodec
+- ✅ Automatic resampling to 16kHz
+- ✅ Automatic stereo → mono conversion
+- ✅ All audio formats supported by torchaudio
+
+**Optional - Manual conversion** (if you prefer .wav files):
 ```bash
 # Install ffmpeg
 sudo apt-get install ffmpeg  # Ubuntu
@@ -127,10 +144,10 @@ find voxceleb2/dev/aac -name "*.m4a" | while read file; do
 done
 ```
 
-**Important**:
+**Format requirements** (handled automatically):
 - Sample rate: 16000 Hz (16kHz)
 - Channels: 1 (mono)
-- Format: WAV or FLAC (lossless)
+- Format: Any format supported by torchaudio (.wav, .m4a, .flac, etc.)
 
 ### Step 3: Organize Directory Structure
 
@@ -162,17 +179,22 @@ Edit `mrl/config.yaml`:
 
 ```yaml
 data:
-  # Training data
+  # Training data (VoxCeleb2, 5994 speakers)
   train_dataset: '/data/voxceleb2/dev/aac'
 
-  # Validation data
+  # Validation data (VoxCeleb1, 1251 DIFFERENT speakers - important!)
   val_dataset: '/data/voxceleb1/dev/wav'
 
-  # Test data
+  # Test data (VoxCeleb1, 40 speakers)
   test_dataset: '/data/voxceleb1/test/wav'
 
 evaluation:
   test_pairs: '/data/test_pairs/veri_test2.txt'
+
+# Optional: Weights & Biases experiment tracking
+logging:
+  wandb: true  # Enable W&B logging (requires .env with WANDB_API_KEY)
+  wandb_project: 'mrl-speaker-recognition'
 ```
 
 ---
@@ -404,20 +426,32 @@ data:
 **Fastest way to get started**:
 
 ```bash
-# 1. Download VoxCeleb2 dev set only (50GB)
+# 1. Download both datasets
 wget https://thor.robots.ox.ac.uk/~vgg/data/voxceleb/vox1a/vox2_dev_aac.zip
+wget https://thor.robots.ox.ac.uk/~vgg/data/voxceleb/vox1a/vox1_dev_wav.zip
 unzip vox2_dev_aac.zip
+unzip vox1_dev_wav.zip
 
-# 2. Use VoxCeleb2 for both train AND validation (quick test)
-# Update config.yaml
+# 2. Set up Weights & Biases (optional)
+echo "WANDB_API_KEY=your_api_key_here" > .env
+
+# 3. Update config.yaml
 data:
-  train_dataset: '/data/voxceleb2/dev/aac'
-  val_dataset: '/data/voxceleb2/dev/aac'  # Same as train (not ideal but works)
+  train_dataset: '/data/voxceleb2/dev/aac'  # Training: 5994 speakers
+  val_dataset: '/data/voxceleb1/dev/wav'    # Validation: 1251 different speakers
 
-# 3. Start training
+# 4. Start training
 cd mrl
 python train.py --config config.yaml
 ```
+
+**⚠️ Not recommended but possible**: Use VoxCeleb2 for both train and validation
+```yaml
+data:
+  train_dataset: '/data/voxceleb2/dev/aac'
+  val_dataset: '/data/voxceleb2/dev/aac'  # Same as train (gives misleading metrics!)
+```
+This will work for quick testing but validation metrics won't reflect true generalization.
 
 **Training time**:
 - Stage 1 (5 epochs): ~1 day
