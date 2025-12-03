@@ -70,7 +70,7 @@ def load_pretrained_redimnet(
         model = model.to(device)
         model.eval()
 
-        print(f"✅ Successfully loaded pretrained model")
+        print(f"[OK] Successfully loaded pretrained model")
         print(f"   Embedding dimension: {model.linear.out_features}")
         total_params = sum(p.numel() for p in model.parameters())
         print(f"   Total parameters: {total_params:,}")
@@ -78,7 +78,7 @@ def load_pretrained_redimnet(
         return model
 
     except Exception as e:
-        print(f"❌ Failed to load pretrained model: {e}")
+        print(f"[FAIL] Failed to load pretrained model: {e}")
         print(f"   Falling back to random initialization")
         return None
 
@@ -134,7 +134,7 @@ def create_mrl_from_pretrained(
     pretrained = load_pretrained_redimnet(model_name, train_type, dataset, device)
 
     if pretrained is None:
-        print("⚠️ Creating MRL model without pretrained weights")
+        print("[WARN] Creating MRL model without pretrained weights")
         mrl_model = ReDimNetMRL(
             embed_dim=embed_dim,
             mrl_dims=mrl_dims,
@@ -174,32 +174,32 @@ def create_mrl_from_pretrained(
     try:
         pretrained_backbone_state = pretrained.backbone.state_dict()
         mrl_model.backbone.backbone.load_state_dict(pretrained_backbone_state, strict=True)
-        print(f"   ✅ Backbone: {len(pretrained_backbone_state)} layers transferred")
+        print(f"   [OK] Backbone: {len(pretrained_backbone_state)} layers transferred")
     except Exception as e:
-        print(f"   ⚠️ Backbone transfer failed: {e}")
+        print(f"   [WARN] Backbone transfer failed: {e}")
 
     # 2. Transfer feature extraction (MelBanks)
     try:
         pretrained_spec_state = pretrained.spec.state_dict()
         mrl_model.backbone.spec.load_state_dict(pretrained_spec_state, strict=True)
-        print(f"   ✅ Feature extractor: {len(pretrained_spec_state)} layers transferred")
+        print(f"   [OK] Feature extractor: {len(pretrained_spec_state)} layers transferred")
     except Exception as e:
-        print(f"   ⚠️ Feature extractor transfer failed: {e}")
+        print(f"   [WARN] Feature extractor transfer failed: {e}")
 
     # 3. Transfer pooling layer
     try:
         pretrained_pool_state = pretrained.pool.state_dict()
         mrl_model.backbone.pool.load_state_dict(pretrained_pool_state, strict=True)
-        print(f"   ✅ Pooling: {len(pretrained_pool_state)} layers transferred")
+        print(f"   [OK] Pooling: {len(pretrained_pool_state)} layers transferred")
     except Exception as e:
-        print(f"   ⚠️ Pooling transfer failed: {e}")
+        print(f"   [WARN] Pooling transfer failed: {e}")
 
     # 4. Initialize MRL projection (cannot transfer - different architecture)
-    print(f"   🆕 MRL projection: Randomly initialized for {mrl_dims} dimensions")
+    print(f"   [NEW] MRL projection: Randomly initialized for {mrl_dims} dimensions")
 
     # Freeze backbone if requested (for stage 1 training)
     if freeze_backbone:
-        print("\n❄️ Freezing backbone for projection-only training...")
+        print("\n[FREEZE] Freezing backbone for projection-only training...")
         for param in mrl_model.backbone.parameters():
             param.requires_grad = False
 
@@ -208,7 +208,7 @@ def create_mrl_from_pretrained(
         total_params = sum(p.numel() for p in mrl_model.parameters())
         print(f"   Trainable: {trainable_params:,} / {total_params:,} parameters")
 
-    print(f"\n✅ MRL model created successfully!")
+    print(f"\n[OK] MRL model created successfully!")
     return mrl_model
 
 
@@ -332,4 +332,4 @@ if __name__ == "__main__":
     unfreeze_backbone(mrl_model)
     get_model_info(mrl_model)
 
-    print("\n✅ All tests passed!")
+    print("\n[OK] All tests passed!")
