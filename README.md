@@ -38,13 +38,19 @@ cd /path/to/single-speaker-detection
 # Install dependencies
 pip install torch torchaudio pyyaml tqdm tensorboard wandb python-dotenv
 
+# Windows: Install FFmpeg shared libraries (required for torchcodec)
+# Run as Administrator:
+choco install ffmpeg-shared -y
+
 # Set up Weights & Biases (optional, for experiment tracking)
 echo "WANDB_API_KEY=your_api_key_here" > .env
 
 # Test installation
 cd mrl
-python -c "from mrl import ReDimNetMRL; print('✅ MRL installed successfully')"
+python -c "from mrl import ReDimNetMRL; print('MRL installed successfully')"
 ```
+
+**Windows Users**: See [TORCHCODEC_WINDOWS_SETUP.md](TORCHCODEC_WINDOWS_SETUP.md) for detailed FFmpeg configuration.
 
 ### 30-Second Example
 
@@ -103,18 +109,21 @@ wget https://thor.robots.ox.ac.uk/~vgg/data/voxceleb/vox1a/vox1_dev_wav.zip
 unzip vox2_dev_aac.zip -d /data/voxceleb2
 unzip vox1_dev_wav.zip -d /data/voxceleb1
 
-# 2. Set up Weights & Biases (optional)
+# 2. Windows Only: Install FFmpeg shared libraries (as Administrator)
+choco install ffmpeg-shared -y
+
+# 3. Set up Weights & Biases (optional)
 echo "WANDB_API_KEY=your_api_key_here" > .env
 
-# 3. Update config with your data paths
+# 4. Update config with your data paths
 vim config.yaml
 # Set: train_dataset: '/data/voxceleb2/dev/aac'
 # Set: val_dataset: '/data/voxceleb1/dev/wav'
 
-# 4. Start training (uses pretrained b2 as backbone)
+# 5. Start training (uses pretrained b2 as backbone)
 python train.py --config config.yaml
 
-# 5. Monitor progress
+# 6. Monitor progress
 tensorboard --logdir logs/mrl_redimnet
 # Or view Weights & Biases dashboard (URL printed at startup)
 ```
@@ -156,6 +165,8 @@ python train.py --config config.yaml
 | **[PRETRAINED_GUIDE.md](docs/PRETRAINED_GUIDE.md)** | Using pretrained ReDimNet models (b0-b6) | Before training |
 | **[DATA_REQUIREMENTS.md](docs/DATA_REQUIREMENTS.md)** | Dataset download, preparation, and requirements | Before training |
 | **[GPU_REQUIREMENTS.md](docs/GPU_REQUIREMENTS.md)** | Memory usage, batch size optimization | Before training |
+| **[INSTALLATION.md](docs/INSTALLATION.md)** | Complete installation guide with platform-specific instructions | Before setup |
+| **[TORCHCODEC_WINDOWS_SETUP.md](TORCHCODEC_WINDOWS_SETUP.md)** | Windows FFmpeg + TorchCodec setup | Windows users |
 | **[LORA_SURVEY.md](docs/LORA_SURVEY.md)** | LoRA for parameter-efficient fine-tuning | Advanced usage |
 | **[CROSS_MODEL_DISTILLATION_ANALYSIS.md](docs/CROSS_MODEL_DISTILLATION_ANALYSIS.md)** | Model ensemble and distillation strategies | Advanced usage |
 
@@ -459,12 +470,19 @@ mrl/
 ├── losses.py                       # MatryoshkaLoss, AAMSoftmax
 ├── dataset.py                      # VoxCelebDataset & DataLoader
 ├── train.py                        # Training script
+├── test_checkpoint.py              # Checkpoint testing & validation
 ├── config.yaml                     # Default configuration
 ├── config_5060ti.yaml              # Optimized for RTX 5060 Ti 16GB
 ├── quick_start.sh                  # Automated setup script
 ├── example_pretrained.py           # Usage examples
 │
 ├── README.md                       # This file
+├── TEST_RESULTS.md                 # Checkpoint test results
+├── TORCHCODEC_WINDOWS_SETUP.md     # Windows FFmpeg setup guide
+├── WINDOWS_SETUP_COMPLETE.md       # Windows configuration summary
+├── CHANGELOG.md                    # Version history
+├── CONTRIBUTING.md                 # Contribution guidelines
+│
 ├── docs/
 │   ├── PRETRAINED_GUIDE.md         # Pretrained model guide
 │   ├── DATA_REQUIREMENTS.md        # Dataset requirements
@@ -474,6 +492,12 @@ mrl/
 │   ├── GET_STARTED.md              # Quick start guide
 │   ├── INSTALLATION.md             # Installation guide
 │   └── SUMMARY.md                  # Project summary
+│
+├── checkpoints/                    # Model checkpoints (not in repo)
+│   └── mrl_redimnet/
+│       ├── best.pt                 # Best model (recommended)
+│       ├── latest.pt               # Latest checkpoint
+│       └── epoch_*.pt              # Per-epoch checkpoints
 ```
 
 ---
@@ -521,6 +545,11 @@ mrl/
 - Enable `mixed_precision`
 - Increase `num_workers` for data loading
 - Use larger `batch_size` if possible
+
+**Windows: TorchCodec/FFmpeg Issues**:
+- Install FFmpeg shared libraries: `choco install ffmpeg-shared -y` (as Admin)
+- See detailed guide: [TORCHCODEC_WINDOWS_SETUP.md](TORCHCODEC_WINDOWS_SETUP.md)
+- Alternative: Use `soundfile` for audio loading (`pip install soundfile`)
 
 ---
 
@@ -602,8 +631,9 @@ This implementation is based on MIT License.
 ## 🙋 Support & Contact
 
 **Issues**: Open a GitHub issue for bugs or questions
-**Documentation**: See guides in this directory
-**Training status**: Check [IMPLEMENTATION.md](../IMPLEMENTATION.md)
+**Documentation**: See guides in `docs/` directory
+**Windows Setup**: [TORCHCODEC_WINDOWS_SETUP.md](TORCHCODEC_WINDOWS_SETUP.md)
+**Test Results**: [TEST_RESULTS.md](TEST_RESULTS.md)
 
 ---
 
@@ -612,10 +642,12 @@ This implementation is based on MIT License.
 - [ ] GPU with 12GB+ VRAM available
 - [ ] 100GB+ free disk space
 - [ ] VoxCeleb2 downloaded (or download link ready)
-- [ ] PyTorch 2.0+ installed
+- [ ] PyTorch 2.9+ installed
+- [ ] **Windows**: FFmpeg shared libraries installed (`choco install ffmpeg-shared -y`)
 - [ ] Read [PRETRAINED_GUIDE.md](docs/PRETRAINED_GUIDE.md)
 - [ ] Read [DATA_REQUIREMENTS.md](docs/DATA_REQUIREMENTS.md)
 - [ ] Read [GPU_REQUIREMENTS.md](docs/GPU_REQUIREMENTS.md) for your GPU
+- [ ] **Windows**: Read [TORCHCODEC_WINDOWS_SETUP.md](TORCHCODEC_WINDOWS_SETUP.md)
 - [ ] Config file updated with your data paths
 
 **Ready to start?**
@@ -632,9 +664,10 @@ tensorboard --logdir logs/mrl_redimnet
 ---
 
 **Status**: ✅ Production Ready
-**Version**: 0.1.0
-**Last Updated**: 2025-12-02
-**Tested On**: PyTorch 2.0+, CUDA 11.8+, Linux/macOS
+**Version**: 0.1.1
+**Last Updated**: 2025-12-03
+**Tested On**: PyTorch 2.9+, CUDA 11.8+, Linux/macOS/Windows
+**Windows**: Requires `ffmpeg-shared` for torchcodec (see [setup guide](TORCHCODEC_WINDOWS_SETUP.md))
 
 ---
 
