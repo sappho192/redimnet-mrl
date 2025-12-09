@@ -101,14 +101,23 @@ logging:
 
 # Evaluation
 evaluation:
-  metrics: ['eer', 'mindcf']  # Metrics to compute
-  eer_threshold: 'auto'  # EER threshold or 'auto'
+  # EER-based validation (proper metric for speaker verification)
+  use_eer_validation: true  # Use EER instead of classification loss for validation
+  use_eer_for_best_model: true  # Select best model based on EER (not val_loss)
 
-  # Test pairs
-  test_pairs: '/path/to/voxceleb1_test_pairs.txt'
+  # Test datasets for EER validation
+  test_datasets:
+    voxceleb1: '/home/tikim/dataset/voxceleb/test/wav'
+    voxceleb2: '/home/tikim/dataset/voxceleb2/test/aac'
 
-  # Multi-dimension evaluation
-  eval_all_dims: true  # Evaluate all MRL dimensions
+  num_val_pairs_per_dataset: 500  # Number of verification pairs per dataset
+  eval_all_dims_during_training: false  # Evaluate all MRL dims (slow, set false for speed)
+
+  # Legacy settings (for reference)
+  metrics: ['eer', 'mindcf']
+  eer_threshold: 'auto'
+  test_pairs: null  # Not using official pairs file
+  eval_all_dims: true  # Final evaluation only
 
 # Reproducibility
 seed: 42

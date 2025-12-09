@@ -29,6 +29,7 @@ from model import ReDimNetMRL
 from losses import MatryoshkaLoss, AAMSoftmax, SubCenterAAMSoftmax, TripletLoss
 from dataset import VoxCelebDataset, create_dataloader
 from pretrained import create_mrl_from_pretrained, unfreeze_backbone
+from evaluate import generate_verification_pairs, compute_eer, evaluate_mrl_all_dims
 
 
 class Trainer:
@@ -64,10 +65,14 @@ class Trainer:
         # Setup logging
         self.writer, self.use_wandb = self._setup_logging()
 
+        # Setup EER validation pairs
+        self.val_pairs = self._setup_eer_validation()
+
         # Training state
         self.epoch = 0
         self.global_step = 0
         self.best_val_loss = float('inf')
+        self.best_eer = float('inf')  # Track best EER
 
     def _set_seed(self, seed):
         """Set random seed for reproducibility."""
@@ -301,6 +306,39 @@ class Trainer:
 
         return writer, use_wandb
 
+    def _setup_eer_validation(self):
+        """Setup EER validation pairs from test datasets."""
+        eval_cfg = self.config.get('evaluation', {})
+
+        if not eval_cfg.get('use_eer_validation', False):
+            print("⚠️  EER validation disabled")
+            return None
+
+        test_datasets = eval_cfg.get('test_datasets', [])
+        if not test_datasets:
+            print("⚠️  No test datasets specified for EER validation")
+            return None
+
+        all_pairs = []
+
+        for dataset_name, dataset_path in test_datasets.items():
+            num_pairs = eval_cfg.get('num_val_pairs_per_dataset', 500)
+            print(f"\n📊 Generating {num_pairs} verification pairs from {dataset_name}...")
+            print(f"   Path: {dataset_path}")
+
+            pairs = generate_verification_pairs(
+                data_dir=dataset_path,
+                num_pairs=num_pairs,
+                positive_ratio=0.5,
+                seed=self.config['seed']
+            )
+
+            all_pairs.extend(pairs)
+            print(f"   ✅ Generated {len(pairs)} pairs from {dataset_name}")
+
+        print(f"\n✅ Total validation pairs: {len(all_pairs)}")
+        return all_pairs
+
     def train_epoch(self):
         """Train for one epoch."""
         self.model.train()
@@ -407,15 +445,52 @@ class Trainer:
             for key, val in avg_val_losses.items():
                 self.writer.add_scalar(f'val/{key}', val, self.epoch)
 
+        # EER validation (proper metric for speaker verification)
+        eer_results = {}
+        if self.val_pairs is not None and len(self.val_pairs) > 0:
+            print(f"\n📊 Computing EER on {len(self.val_pairs)} verification pairs...")
+
+            # Compute EER for primary dimension (256D)
+            primary_dim = self.config['model']['embed_dim']
+            eer_metrics = compute_eer(
+                model=self.model,
+                pairs=self.val_pairs,
+                device=self.device,
+                target_dim=primary_dim
+            )
+
+            eer = eer_metrics['eer']
+            eer_results[f'{primary_dim}d'] = eer
+
+            print(f"   EER ({primary_dim}D): {eer*100:.3f}%")
+            print(f"   Threshold: {eer_metrics['threshold']:.4f}")
+            print(f"   Accuracy: {eer_metrics['accuracy']*100:.2f}%")
+
+            # Optional: Evaluate all MRL dimensions (expensive)
+            if self.config.get('evaluation', {}).get('eval_all_dims_during_training', False):
+                for dim in self.config['model']['mrl_dims']:
+                    if dim == primary_dim:
+                        continue
+                    dim_metrics = compute_eer(self.model, self.val_pairs, self.device, target_dim=dim)
+                    eer_results[f'{dim}d'] = dim_metrics['eer']
+                    print(f"   EER ({dim}D): {dim_metrics['eer']*100:.3f}%")
+
         # Wandb logging
         if self.use_wandb:
             import wandb
-            wandb.log({
+            log_dict = {
                 'val/loss': avg_val_loss,
                 **{f'val/{k}': v for k, v in avg_val_losses.items()}
-            }, step=self.epoch)
+            }
+            # Add EER metrics
+            if eer_results:
+                log_dict['val/eer_primary'] = eer_results.get(f'{self.config["model"]["embed_dim"]}d', float('inf'))
+                for dim_key, eer_val in eer_results.items():
+                    log_dict[f'val/eer_{dim_key}'] = eer_val
 
-        return avg_val_loss, avg_val_losses
+            wandb.log(log_dict, step=self.epoch)
+
+        return avg_val_loss, avg_val_losses, eer_results
 
     def save_checkpoint(self, is_best=False):
         """Save model checkpoint."""
@@ -428,6 +503,7 @@ class Trainer:
             'optimizer_state_dict': self.optimizer.state_dict(),
             'scheduler_state_dict': self.scheduler.state_dict() if self.scheduler else None,
             'best_val_loss': self.best_val_loss,
+            'best_eer': self.best_eer,
             'config': self.config,
         }
 
@@ -447,6 +523,7 @@ class Trainer:
             if self.use_wandb:
                 import wandb
                 wandb.run.summary["best_val_loss"] = self.best_val_loss
+                wandb.run.summary["best_eer"] = self.best_eer
                 wandb.run.summary["best_epoch"] = self.epoch
 
     def train(self):
@@ -477,12 +554,24 @@ class Trainer:
 
             # Validate
             if epoch % self.config['logging']['val_interval'] == 0:
-                val_loss, val_losses = self.validate()
+                val_loss, val_losses, eer_results = self.validate()
 
-                # Check if best model
-                is_best = val_loss < self.best_val_loss
-                if is_best:
-                    self.best_val_loss = val_loss
+                # Check if best model (based on EER if available, else val_loss)
+                use_eer_for_best = self.config.get('evaluation', {}).get('use_eer_for_best_model', False)
+
+                if use_eer_for_best and eer_results:
+                    # Use EER as primary metric (lower is better)
+                    primary_dim = self.config['model']['embed_dim']
+                    current_eer = eer_results.get(f'{primary_dim}d', float('inf'))
+                    is_best = current_eer < self.best_eer
+                    if is_best:
+                        self.best_eer = current_eer
+                        self.best_val_loss = val_loss  # Keep for logging
+                else:
+                    # Use val_loss as metric
+                    is_best = val_loss < self.best_val_loss
+                    if is_best:
+                        self.best_val_loss = val_loss
 
                 # Save checkpoint
                 self.save_checkpoint(is_best=is_best)
@@ -490,7 +579,12 @@ class Trainer:
                 print(f"\nEpoch {epoch+1}/{num_epochs}")
                 print(f"  Train Loss: {train_loss:.4f}")
                 print(f"  Val Loss: {val_loss:.4f}")
-                print(f"  Best Val Loss: {self.best_val_loss:.4f}")
+                if use_eer_for_best and eer_results:
+                    primary_eer = eer_results.get(f'{self.config["model"]["embed_dim"]}d', 0)
+                    print(f"  Val EER: {primary_eer*100:.3f}%")
+                    print(f"  Best EER: {self.best_eer*100:.3f}%")
+                else:
+                    print(f"  Best Val Loss: {self.best_val_loss:.4f}")
                 for dim in self.config['model']['mrl_dims']:
                     print(f"    Loss {dim}D: {val_losses.get(f'loss_{dim}d', 0):.4f}")
 
