@@ -28,7 +28,7 @@ loss:
 
 # Training
 training:
-  num_epochs: 100
+  num_epochs: 30  # Projection-only training (reduced from 100)
   batch_size: 64
   accumulation_steps: 1  # Gradient accumulation
   max_grad_norm: 1.0  # Gradient clipping
@@ -131,9 +131,9 @@ advanced:
   train_type: 'ptn'  # ptn (pretrained), ft_lm (large-margin), ft_mix (mixed datasets)
   pretrained_dataset: 'vox2'  # vox2 or vb2+vox2+cnc
 
-  # Two-stage training (recommended with pretrained models)
-  freeze_backbone_epochs: 15  # Stage 1: Train projection only for N epochs (extended to prevent overfitting)
-                               # Stage 2: Unfreeze and fine-tune entire model
+  # Projection-only training (backbone permanently frozen)
+  freeze_backbone_epochs: 9999  # Never unfreeze - pretrained backbone is already excellent
+                                 # EER validation showed unfreezing degrades performance (3.80% → 7.50%)
 
   # Alternative: Load from local checkpoint
   pretrained_checkpoint: null  # Path to local .pt file (overrides torch.hub)
