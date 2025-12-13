@@ -57,6 +57,8 @@ cd redimnet-mrl
 
 # Install dependencies
 pip install torch torchaudio pyyaml tqdm tensorboard wandb python-dotenv
+# Or you can simply use uv
+# uv sync
 
 # Create checkpoint directory
 mkdir -p checkpoints/mrl_redimnet
