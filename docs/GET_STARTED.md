@@ -2,6 +2,10 @@
 
 **Welcome!** This is your **3-step guide** to training multi-resolution speaker embeddings.
 
+> [!IMPORTANT]
+> **Training Strategy**: Use projection-only training (frozen backbone) for best results.
+> This approach is validated and achieves 7.2% average EER on VoxCeleb test.
+
 ---
 
 ## Prerequisites Check ✓
@@ -78,10 +82,10 @@ print(f'✅ Loaded {len(ds)} utterances')
 
 ---
 
-## Step 3: Start Training (7 days)
+## Step 3: Start Training (2 days)
 
 ```bash
-# Start training with your GPU-optimized config
+# Start training with projection-only approach (validated)
 python train.py --config config_5060ti.yaml
 
 # In another terminal: Monitor progress
@@ -91,30 +95,42 @@ tensorboard --logdir logs/mrl_redimnet_5060ti
 
 **What happens**:
 ```
-Loading pretrained ReDimNet-b2 (ft_lm, vox2)...
+Loading pretrained ReDimNet-b2 (ptn, vox2)...
 ✅ Successfully loaded pretrained model
 
-Epoch 1/100 [Stage 1: Backbone Frozen]
-  Train Loss: 2.145
+Epoch 1/30 [Projection-Only Training: Backbone Frozen]
+  Train Loss: 12.93
+  Val EER: 3.80%  # This is the metric that matters!
   GPU Memory: 6.2GB / 16.0GB
-  Time: 4.5 hours
+  Time: ~90 minutes per epoch
 
-Epoch 5/100
-  Val Loss: 1.234
-  ✅ Saved best model
+Epoch 5/30
+  Train Loss: 11.65
+  Val EER: 4.00%
 
-Epoch 6/100 [Stage 2: Unfreezing Backbone]
-  Train Loss: 1.123
-  GPU Memory: 7.1GB / 16.0GB
+Epoch 14/30
+  Train Loss: 11.55
+  Val EER: 4.20%
+  ✅ Best model saved (lowest EER)
 
-...
-
-Epoch 100/100
-  Val Loss: 0.456
+Epoch 30/30
+  Train Loss: 11.50
+  Val EER: 4.30%
   ✅ Training complete!
+
+Final Results:
+  Best EER: 4.20% (Epoch 14)
+  64D EER: 9.6%
+  128D EER: 7.6%
+  192D EER: 6.0%
+  256D EER: 5.6%
 ```
 
 **Checkpoints saved to**: `checkpoints/mrl_redimnet_5060ti/best.pt`
+
+> [!NOTE]
+> **Why backbone stays frozen**: Backbone fine-tuning degrades performance by 50%.
+> See [validation reports](../docs/report/) for detailed analysis.
 
 ---
 
@@ -146,16 +162,20 @@ print(f"Accurate: {emb_256d.shape}") # [1, 256]
 
 ## What You Get
 
-After training, you'll have **one model** that provides:
+After training (projection-only, 30 epochs), you'll have **one model** that provides:
 
-| Dimension | EER | Speed | Use Case |
-|-----------|-----|-------|----------|
-| 64D | ~1.2% | 2x faster | Real-time processing |
-| 128D | ~1.0% | 1.5x faster | Mobile apps |
-| 192D | ~0.9% | 1.2x faster | Balanced |
-| 256D | ~0.85% | Baseline | Maximum accuracy |
+| Dimension | EER | Speed | Accuracy | Use Case |
+|-----------|-----|-------|----------|----------|
+| 64D | ~9.6% | 2x faster | 90.4% | Real-time processing |
+| 128D | ~7.6% | 1.5x faster | 92.4% | Mobile apps |
+| 192D | ~6.0% | 1.2x faster | 94.0% | Balanced |
+| 256D | ~5.6% | Baseline | 94.4% | Maximum accuracy |
 
 **All from the same model!** 🎉
+
+> [!NOTE]
+> Performance validated on 500 real VoxCeleb pairs.
+> See [checkpoint comparison report](../docs/report/2025-12-13_CHECKPOINT_COMPARISON_REAL_AUDIO.md) for details.
 
 ---
 
