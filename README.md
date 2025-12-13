@@ -18,13 +18,13 @@ A **single speaker recognition model** that produces embeddings at **multiple re
 
 ### Key Features
 
-✨ **Multi-Resolution Embeddings**: Extract 64D (fast), 128D (balanced), or 256D (accurate) from one model
-🎯 **Pre-trained Checkpoint Available**: Download validated model from [GitHub Release v1.0.1](https://github.com/sappho192/redimnet-mrl/releases/tag/1.0.1) - no training needed!
-🔥 **Pretrained Backbone Support**: Leverage official ReDimNet models (b0-b6) as starting points
-⚡ **Production Ready**: Validated training strategy (projection-only) with real audio testing
-📊 **Proven Performance**: 7.2% average EER on 500 VoxCeleb verification pairs
-💾 **Memory Efficient**: Optimized for GPUs from 12GB to 80GB VRAM
-📈 **Well Validated**: Comprehensive validation reports with evidence-based recommendations
+✨ **Multi-Resolution Embeddings**: Extract 64D (fast), 128D (balanced), or 256D (accurate) from one model  
+🎯 **Pre-trained Checkpoint Available**: Download validated model from [GitHub Release v1.0.1](https://github.com/sappho192/redimnet-mrl/releases/tag/1.0.1) - no training needed!  
+🔥 **Pretrained Backbone Support**: Leverage official ReDimNet models (b0-b6) as starting points  
+⚡ **Production Ready**: Validated training strategy (projection-only) with real audio testing  
+📊 **Proven Performance**: 7.2% average EER on 500 VoxCeleb verification pairs  
+💾 **Memory Efficient**: Optimized for GPUs from 12GB to 80GB VRAM  
+📈 **Well Validated**: Comprehensive validation reports with evidence-based recommendations  
 
 ---
 
