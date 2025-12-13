@@ -35,6 +35,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from model import ReDimNetMRL
 from pretrained import create_mrl_from_pretrained
+from evaluate import generate_verification_pairs, compute_eer
 
 
 def load_checkpoint(checkpoint_path: Path, device='cpu'):
@@ -47,8 +48,8 @@ def load_checkpoint(checkpoint_path: Path, device='cpu'):
         print(f"[FAIL] Checkpoint not found: {checkpoint_path}")
         return None
 
-    # Load checkpoint
-    checkpoint = torch.load(checkpoint_path, map_location=device)
+    # Load checkpoint (weights_only=False since these are our own trusted checkpoints)
+    checkpoint = torch.load(checkpoint_path, map_location=device, weights_only=False)
 
     # Print checkpoint info
     print(f"Checkpoint information:")
@@ -181,7 +182,7 @@ def test_all_dimensions_batch(model, mrl_dims: List[int], device='cpu'):
         print(f"  {dim}D: shape={emb.shape}, norm={emb[0].norm(p=2).item():.4f}")
 
 
-def test_speaker_similarity(model, mrl_dims: List[int], device='cpu'):
+def test_speaker_similarity(model, mrl_dims: List[int], device='cpu', voxceleb_pairs=None):
     """Test speaker similarity computation across all MRL dimensions."""
     print(f"\n{'='*70}")
     print(f"Testing Speaker Similarity Across All Dimensions")
@@ -189,68 +190,111 @@ def test_speaker_similarity(model, mrl_dims: List[int], device='cpu'):
 
     model.eval()
 
-    # Simulate two utterances from same speaker
-    audio1_same = torch.randn(1, 1, 48000).to(device)
-    audio2_same = audio1_same + torch.randn(1, 1, 48000).to(device) * 0.1  # Similar
+    # If real VoxCeleb pairs available, use EER evaluation
+    if voxceleb_pairs is not None and len(voxceleb_pairs) > 0:
+        print(f"\nUsing real VoxCeleb audio ({len(voxceleb_pairs)} verification pairs)")
+        print("Computing EER (Equal Error Rate) for each dimension...")
 
-    # Simulate utterances from different speakers
-    audio1_diff = torch.randn(1, 1, 48000).to(device)
-    audio2_diff = torch.randn(1, 1, 48000).to(device)
+        eer_results = {}
+        for dim in mrl_dims:
+            print(f"\nEvaluating {dim}D embeddings...")
+            metrics = compute_eer(model, voxceleb_pairs, device=device, target_dim=dim)
+            eer_results[dim] = metrics
+            print(f"  EER: {metrics['eer']*100:.2f}%")
+            print(f"  Threshold: {metrics['threshold']:.4f}")
+            print(f"  Accuracy: {metrics['accuracy']*100:.2f}%")
 
-    print(f"\nTest setup:")
-    print(f"  Same speaker: utterance 2 = utterance 1 + 10% noise")
-    print(f"  Different speakers: completely different random audio")
+        # Display summary table
+        print(f"\n{'='*70}")
+        print("EER Summary (Lower is Better)")
+        print(f"{'='*70}")
+        print(f"{'Dimension':<12} {'EER':<12} {'Accuracy':<12} {'Threshold':<12} {'Status':<10}")
+        print("-" * 70)
 
-    results = {}
+        for dim in mrl_dims:
+            res = eer_results[dim]
+            eer_pct = res['eer'] * 100
+            acc_pct = res['accuracy'] * 100
+            status = "[OK]" if eer_pct < 10.0 else "[WARN]"
+            print(f"{dim}D{'':<9} {eer_pct:<12.2f}% {acc_pct:<12.2f}% {res['threshold']:<12.4f} {status:<10}")
 
-    for dim in mrl_dims:
-        with torch.no_grad():
-            # Same speaker
-            emb1_same = model(audio1_same, target_dim=dim)
-            emb2_same = model(audio2_same, target_dim=dim)
+        print(f"\n{'='*70}")
+        print("Summary:")
+        print(f"  EER = Equal Error Rate (industry standard metric)")
+        print(f"  Lower EER = better speaker verification")
+        print(f"  Good: <5%, Moderate: 5-10%, Poor: >10%")
 
-            # Different speakers
-            emb1_diff = model(audio1_diff, target_dim=dim)
-            emb2_diff = model(audio2_diff, target_dim=dim)
+        avg_eer = sum(r['eer'] for r in eer_results.values()) / len(mrl_dims) * 100
+        print(f"  Average EER: {avg_eer:.2f}%")
 
-            # Normalize embeddings
-            emb1_same = F.normalize(emb1_same, p=2, dim=1)
-            emb2_same = F.normalize(emb2_same, p=2, dim=1)
-            emb1_diff = F.normalize(emb1_diff, p=2, dim=1)
-            emb2_diff = F.normalize(emb2_diff, p=2, dim=1)
-
-            # Compute cosine similarity
-            sim_same = F.cosine_similarity(emb1_same, emb2_same).item()
-            sim_diff = F.cosine_similarity(emb1_diff, emb2_diff).item()
-
-            results[dim] = {
-                'same': sim_same,
-                'diff': sim_diff,
-                'delta': sim_same - sim_diff
-            }
-
-    # Display results in a table
-    print(f"\n{'Dimension':<12} {'Same Spkr':<12} {'Diff Spkr':<12} {'Delta':<12} {'Status':<10}")
-    print("-" * 70)
-
-    for dim in mrl_dims:
-        res = results[dim]
-        status = "[OK]" if res['delta'] > 0 else "[WARN]"
-        print(f"{dim}D{'':<9} {res['same']:<12.4f} {res['diff']:<12.4f} {res['delta']:<12.4f} {status:<10}")
-
-    # Summary
-    print(f"\n{'='*70}")
-    print("Summary:")
-    print(f"  Higher delta means better speaker discrimination")
-    print(f"  Expected: Same speaker similarity > Different speaker similarity")
-
-    # Check if all dimensions show correct behavior
-    all_correct = all(res['delta'] > 0 for res in results.values())
-    if all_correct:
-        print(f"  [OK] All dimensions correctly distinguish same vs different speakers")
     else:
-        failing_dims = [dim for dim, res in results.items() if res['delta'] <= 0]
-        print(f"  [WARN] Dimensions {failing_dims} may need more training")
+        # Fallback to synthetic audio test
+        print(f"\n⚠️ No VoxCeleb pairs provided - using synthetic audio")
+        print(f"Note: Synthetic audio tests are NOT reliable for speaker verification!")
+
+        # Simulate two utterances from same speaker
+        audio1_same = torch.randn(1, 1, 48000).to(device)
+        audio2_same = audio1_same + torch.randn(1, 1, 48000).to(device) * 0.1  # Similar
+
+        # Simulate utterances from different speakers
+        audio1_diff = torch.randn(1, 1, 48000).to(device)
+        audio2_diff = torch.randn(1, 1, 48000).to(device)
+
+        print(f"\nTest setup:")
+        print(f"  Same speaker: utterance 2 = utterance 1 + 10% noise")
+        print(f"  Different speakers: completely different random audio")
+
+        results = {}
+
+        for dim in mrl_dims:
+            with torch.no_grad():
+                # Same speaker
+                emb1_same = model(audio1_same, target_dim=dim)
+                emb2_same = model(audio2_same, target_dim=dim)
+
+                # Different speakers
+                emb1_diff = model(audio1_diff, target_dim=dim)
+                emb2_diff = model(audio2_diff, target_dim=dim)
+
+                # Normalize embeddings
+                emb1_same = F.normalize(emb1_same, p=2, dim=1)
+                emb2_same = F.normalize(emb2_same, p=2, dim=1)
+                emb1_diff = F.normalize(emb1_diff, p=2, dim=1)
+                emb2_diff = F.normalize(emb2_diff, p=2, dim=1)
+
+                # Compute cosine similarity
+                sim_same = F.cosine_similarity(emb1_same, emb2_same).item()
+                sim_diff = F.cosine_similarity(emb1_diff, emb2_diff).item()
+
+                results[dim] = {
+                    'same': sim_same,
+                    'diff': sim_diff,
+                    'delta': sim_same - sim_diff
+                }
+
+        # Display results in a table
+        print(f"\n{'Dimension':<12} {'Same Spkr':<12} {'Diff Spkr':<12} {'Delta':<12} {'Status':<10}")
+        print("-" * 70)
+
+        for dim in mrl_dims:
+            res = results[dim]
+            status = "[OK]" if res['delta'] > 0 else "[WARN]"
+            print(f"{dim}D{'':<9} {res['same']:<12.4f} {res['diff']:<12.4f} {res['delta']:<12.4f} {status:<10}")
+
+        # Summary
+        print(f"\n{'='*70}")
+        print("Summary:")
+        print(f"  Higher delta means better speaker discrimination")
+        print(f"  Expected: Same speaker similarity > Different speaker similarity")
+        print(f"  ⚠️ WARNING: These results may be misleading!")
+
+        # Check if all dimensions show correct behavior
+        all_correct = all(res['delta'] > 0 for res in results.values())
+        if all_correct:
+            print(f"  [OK] All dimensions correctly distinguish same vs different speakers")
+        else:
+            failing_dims = [dim for dim, res in results.items() if res['delta'] <= 0]
+            print(f"  [WARN] Dimensions {failing_dims} may need more training")
 
 
 def compare_checkpoints(checkpoint_dir: Path, config_path: Path, device='cpu'):
@@ -387,14 +431,35 @@ def test_real_audio(model, audio_dir: Path, mrl_dims: List[int], device='cpu'):
 
 def main():
     """Main test routine."""
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Test MRL-ReDimNet checkpoints')
+    parser.add_argument('--checkpoint-dir', type=str, default=None,
+                        help='Directory containing checkpoints (default: ./checkpoints/mrl_redimnet)')
+    parser.add_argument('--config', type=str, default=None,
+                        help='Path to config.yaml (default: ./config.yaml)')
+    args = parser.parse_args()
+
     print(f"\n{'='*70}")
     print("MRL-ReDimNet Checkpoint Testing Suite")
     print(f"{'='*70}")
 
     # Setup paths
     project_root = Path(__file__).parent
-    checkpoint_dir = project_root / "checkpoints" / "mrl_redimnet"
-    config_path = project_root / "config.yaml"
+
+    if args.checkpoint_dir:
+        checkpoint_dir = Path(args.checkpoint_dir).expanduser()
+    else:
+        checkpoint_dir = project_root / "checkpoints" / "mrl_redimnet"
+
+    if args.config:
+        config_path = Path(args.config).expanduser()
+    else:
+        config_path = project_root / "config.yaml"
+
+    print(f"\nPaths:")
+    print(f"  Checkpoint directory: {checkpoint_dir}")
+    print(f"  Config file: {config_path}")
 
     # Check for CUDA
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -437,10 +502,38 @@ def main():
         # Test 4: Batch all dimensions
         test_all_dimensions_batch(model, mrl_dims, device)
 
-        # Test 5: Speaker similarity
-        test_speaker_similarity(model, mrl_dims, device=device)
+        # Test 5: Generate VoxCeleb verification pairs for real evaluation
+        print(f"\n{'='*70}")
+        print("Generating VoxCeleb Verification Pairs")
+        print(f"{'='*70}")
 
-        # Test 6: Real audio (if available)
+        voxceleb_pairs = []
+        vox1_test = Path.home() / "dataset" / "voxceleb" / "test" / "wav"
+        vox2_test = Path.home() / "dataset" / "voxceleb2" / "test" / "aac"
+
+        if vox1_test.exists():
+            print(f"\nGenerating pairs from VoxCeleb1 test: {vox1_test}")
+            vox1_pairs = generate_verification_pairs(str(vox1_test), num_pairs=250, seed=42)
+            voxceleb_pairs.extend(vox1_pairs)
+            print(f"  Generated {len(vox1_pairs)} VoxCeleb1 pairs")
+        else:
+            print(f"\n⚠️ VoxCeleb1 test not found at {vox1_test}")
+
+        if vox2_test.exists():
+            print(f"\nGenerating pairs from VoxCeleb2 test: {vox2_test}")
+            vox2_pairs = generate_verification_pairs(str(vox2_test), num_pairs=250, seed=43)
+            voxceleb_pairs.extend(vox2_pairs)
+            print(f"  Generated {len(vox2_pairs)} VoxCeleb2 pairs")
+        else:
+            print(f"\n⚠️ VoxCeleb2 test not found at {vox2_test}")
+
+        if voxceleb_pairs:
+            print(f"\nTotal verification pairs: {len(voxceleb_pairs)}")
+
+        # Test 6: Speaker similarity/verification with real audio
+        test_speaker_similarity(model, mrl_dims, device=device, voxceleb_pairs=voxceleb_pairs if voxceleb_pairs else None)
+
+        # Test 7: Individual audio file testing (optional, if alternative path exists)
         voxceleb_path = Path("G:/DATASET/voxceleb")
         if voxceleb_path.exists():
             # Try different possible paths
@@ -455,9 +548,6 @@ def main():
                 if test_path.exists():
                     test_real_audio(model, test_path, mrl_dims, device)
                     break
-        else:
-            print(f"\n[WARN] VoxCeleb dataset not found at {voxceleb_path}")
-            print("   Skipping real audio test.")
 
     print(f"\n{'='*70}")
     print("[OK] All tests completed!")
