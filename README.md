@@ -18,12 +18,31 @@ A **single speaker recognition model** that produces embeddings at **multiple re
 
 ### Key Features
 
-✨ **Multi-Resolution Embeddings**: Extract 64D (fast), 128D (balanced), or 256D (accurate) from one model  
-🔥 **Pretrained Model Support**: Leverage official ReDimNet models (b0-b6) as starting points  
-⚡ **Production Ready**: Complete training pipeline with checkpointing, logging, and evaluation  
-🎯 **State-of-the-Art**: Built on ReDimNet achieving 0.835% EER on VoxCeleb1-O  
-💾 **Memory Efficient**: Optimized for GPUs from 12GB to 80GB VRAM  
-📊 **Well Documented**: Comprehensive guides for training, evaluation, and deployment  
+✨ **Multi-Resolution Embeddings**: Extract 64D (fast), 128D (balanced), or 256D (accurate) from one model
+🎯 **Pre-trained Checkpoint Available**: Download validated model from [GitHub Release v1.0.1](https://github.com/sappho192/redimnet-mrl/releases/tag/1.0.1) - no training needed!
+🔥 **Pretrained Backbone Support**: Leverage official ReDimNet models (b0-b6) as starting points
+⚡ **Production Ready**: Validated training strategy (projection-only) with real audio testing
+📊 **Proven Performance**: 7.2% average EER on 500 VoxCeleb verification pairs
+💾 **Memory Efficient**: Optimized for GPUs from 12GB to 80GB VRAM
+📈 **Well Validated**: Comprehensive validation reports with evidence-based recommendations
+
+---
+
+## 🚀 Quick Start Options
+
+**Option 1: Use Pre-trained Checkpoint** (Fastest - No training needed!)
+```bash
+# Download validated checkpoint
+wget https://github.com/sappho192/redimnet-mrl/releases/download/1.0.1/best_2025-12-10_07-20.pt \
+     -O checkpoints/mrl_redimnet/best.pt
+
+# Use immediately - see "30-Second Example" below
+```
+
+**Option 2: Train Your Own** (2 days on RTX 5060 Ti)
+```bash
+# See "Training Your Own MRL Model" section below
+```
 
 ---
 
@@ -33,10 +52,18 @@ A **single speaker recognition model** that produces embeddings at **multiple re
 
 ```bash
 # Clone repository
-cd /path/to/single-speaker-detection
+git clone https://github.com/sappho192/redimnet-mrl.git
+cd redimnet-mrl
 
 # Install dependencies
 pip install torch torchaudio pyyaml tqdm tensorboard wandb python-dotenv
+
+# Create checkpoint directory
+mkdir -p checkpoints/mrl_redimnet
+
+# Download pre-trained checkpoint (optional - ready to use!)
+wget https://github.com/sappho192/redimnet-mrl/releases/download/1.0.1/best_2025-12-10_07-20.pt \
+     -O checkpoints/mrl_redimnet/best.pt
 
 # Windows: Install FFmpeg shared libraries (required for torchcodec)
 # Run as Administrator:
@@ -46,34 +73,71 @@ choco install ffmpeg-shared -y
 echo "WANDB_API_KEY=your_api_key_here" > .env
 
 # Test installation
-cd mrl
-python -c "from mrl import ReDimNetMRL; print('MRL installed successfully')"
+python -c "from model import ReDimNetMRL; print('MRL installed successfully')"
 ```
 
 **Windows Users**: See [TORCHCODEC_WINDOWS_SETUP.md](TORCHCODEC_WINDOWS_SETUP.md) for detailed FFmpeg configuration.
 
-### 30-Second Example
+### 30-Second Example - Use Pre-trained MRL Model ⭐
+
+**Option 1: Download our trained checkpoint** (Recommended - Ready to use!)
+
+```bash
+# Download the validated checkpoint (epoch 14, 7.2% average EER)
+wget https://github.com/sappho192/redimnet-mrl/releases/download/1.0.1/best_2025-12-10_07-20.pt \
+     -O checkpoints/mrl_redimnet/best.pt
+```
+
+```python
+from pretrained import create_mrl_from_pretrained
+import torch
+
+# Create model architecture
+model = create_mrl_from_pretrained(
+    model_name='b2',
+    train_type='ptn',
+    embed_dim=256,
+    mrl_dims=[64, 128, 192, 256],
+    freeze_backbone=False
+)
+
+# Load trained weights
+checkpoint = torch.load('checkpoints/mrl_redimnet/best.pt', weights_only=False)
+model.load_state_dict(checkpoint['model_state_dict'])
+model.eval()
+
+# Extract embeddings at different resolutions
+audio = torch.randn(1, 1, 48000)  # 3 seconds at 16kHz
+
+emb_64d = model(audio, target_dim=64)     # Fast: 9.6% EER, 90.4% accuracy
+emb_128d = model(audio, target_dim=128)   # Balanced: 7.6% EER, 92.4% accuracy
+emb_256d = model(audio, target_dim=256)   # Accurate: 5.6% EER, 94.4% accuracy
+
+print(f"Fast:     {emb_64d.shape}")   # [1, 64]
+print(f"Balanced: {emb_128d.shape}")  # [1, 128]
+print(f"Accurate: {emb_256d.shape}")  # [1, 256]
+```
+
+**Option 2: Start from pretrained ReDimNet only** (Train your own MRL projection)
 
 ```python
 from mrl import create_mrl_from_pretrained
 import torch
 
-# Load pretrained MRL model
+# Load pretrained ReDimNet backbone only
 model = create_mrl_from_pretrained(
     model_name='b2',           # Best balanced model
-    train_type='ft_lm',        # Fine-tuned with Large Margin
+    train_type='ptn',          # Pre-trained backbone
     embed_dim=256,
     mrl_dims=[64, 128, 192, 256]
 )
 
-# Extract embeddings at different resolutions
-audio = torch.randn(1, 1, 48000)  # 3 seconds at 16kHz
+# Extract embeddings (MRL projection randomly initialized)
+audio = torch.randn(1, 1, 48000)
+emb_256d = model(audio, target_dim=256)
 
-emb_64d = model(audio, target_dim=64)    # Fast mode
-emb_256d = model(audio, target_dim=256)  # Accurate mode
-
-print(f"Fast embedding: {emb_64d.shape}")      # [1, 64]
-print(f"Accurate embedding: {emb_256d.shape}") # [1, 256]
+print(f"Embedding: {emb_256d.shape}")  # [1, 256]
+# Note: You'll need to train the MRL projection for good performance
 ```
 
 ---
@@ -184,6 +248,7 @@ python train.py --config config.yaml
 
 ### Quick Reference
 
+- **🎯 Pre-trained checkpoint**: Download from [GitHub Release v1.0.1](https://github.com/sappho192/redimnet-mrl/releases/tag/1.0.1) (ready to use!)
 - **Hardware requirements**: See [GPU_REQUIREMENTS.md](docs/GPU_REQUIREMENTS.md)
 - **Data download**: See [DATA_REQUIREMENTS.md](docs/DATA_REQUIREMENTS.md)
 - **Pretrained models**: See [PRETRAINED_GUIDE.md](docs/PRETRAINED_GUIDE.md)
@@ -193,40 +258,43 @@ python train.py --config config.yaml
 
 ## 🎯 Usage Examples
 
-### 1. Load Original Pretrained Model (Not MRL)
+### 1. Load Trained MRL Checkpoint (Recommended) ⭐
 
 ```python
-from mrl import load_pretrained_redimnet
+from pretrained import create_mrl_from_pretrained
+import torch
 
-# Load official pretrained ReDimNet
-model = load_pretrained_redimnet(
-    model_name='b2',     # b0, b1, b2, b3, b5, b6, M
-    train_type='ft_lm',  # ptn, ft_lm, ft_mix
-    dataset='vox2'
+# Download checkpoint first:
+# wget https://github.com/sappho192/redimnet-mrl/releases/download/1.0.1/best_2025-12-10_07-20.pt
+
+# Create model and load trained weights
+model = create_mrl_from_pretrained(
+    model_name='b2',
+    train_type='ptn',
+    embed_dim=256,
+    mrl_dims=[64, 128, 192, 256]
 )
 
-# Extract 192D embedding
-audio = load_audio('speaker.wav')
-embedding = model(audio)
+checkpoint = torch.load('checkpoints/mrl_redimnet/best.pt', weights_only=False)
+model.load_state_dict(checkpoint['model_state_dict'])
+model.eval()
+
+# Extract multi-resolution embeddings
+audio = load_audio('speaker.wav')  # Your audio file
+emb_64d = model(audio, target_dim=64)    # Fast: 9.6% EER
+emb_128d = model(audio, target_dim=128)  # Balanced: 7.6% EER
+emb_256d = model(audio, target_dim=256)  # Accurate: 5.6% EER
 ```
 
-### 2. Create MRL from Pretrained
+### 2. Get All Dimensions at Once
 
 ```python
-from mrl import create_mrl_from_pretrained
+# Extract all dimensions in one forward pass
+emb_dict = model(audio, return_all_dims=True)
+# {64: tensor[1,64], 128: tensor[1,128], 192: tensor[1,192], 256: tensor[1,256]}
 
-# Convert pretrained to MRL
-mrl_model = create_mrl_from_pretrained(
-    model_name='b2',
-    train_type='ft_lm',
-    embed_dim=256,
-    mrl_dims=[64, 128, 192, 256],
-    freeze_backbone=False  # Full model trainable
-)
-
-# Get all dimensions
-emb_dict = mrl_model(audio, return_all_dims=True)
-# {64: tensor[1,64], 128: tensor[1,128], ...}
+for dim, emb in emb_dict.items():
+    print(f"{dim}D embedding: {emb.shape}")
 ```
 
 ### 3. Speaker Verification
@@ -234,13 +302,17 @@ emb_dict = mrl_model(audio, return_all_dims=True)
 ```python
 import torch.nn.functional as F
 
-# Extract embeddings
-emb1 = mrl_model(audio1, target_dim=128)
-emb2 = mrl_model(audio2, target_dim=128)
+# Extract embeddings for two audio samples
+emb1 = model(audio1, target_dim=128)  # Balanced mode
+emb2 = model(audio2, target_dim=128)
 
-# Compute similarity
+# Normalize embeddings (important!)
+emb1 = F.normalize(emb1, p=2, dim=1)
+emb2 = F.normalize(emb2, p=2, dim=1)
+
+# Compute cosine similarity
 similarity = F.cosine_similarity(emb1, emb2)
-is_same_speaker = similarity > 0.6
+is_same_speaker = similarity > 0.6  # Threshold depends on your use case
 
 print(f"Similarity: {similarity.item():.3f}")
 print(f"Same speaker: {is_same_speaker.item()}")
@@ -249,14 +321,14 @@ print(f"Same speaker: {is_same_speaker.item()}")
 ### 4. Speed vs Accuracy Trade-off
 
 ```python
-# Fast mode: 64D (2x faster, 85% accuracy)
-emb_fast = mrl_model(audio, target_dim=64)
+# Fast mode: 64D (2x faster, 90.4% accuracy, 9.6% EER)
+emb_fast = model(audio, target_dim=64)
 
-# Balanced mode: 128D (1.5x faster, 90% accuracy)
-emb_balanced = mrl_model(audio, target_dim=128)
+# Balanced mode: 128D (1.5x faster, 92.4% accuracy, 7.6% EER)
+emb_balanced = model(audio, target_dim=128)
 
-# Accurate mode: 256D (baseline speed, over 90% accuracy)
-emb_accurate = mrl_model(audio, target_dim=256)
+# Accurate mode: 256D (baseline speed, 94.4% accuracy, 5.6% EER)
+emb_accurate = model(audio, target_dim=256)
 ```
 
 ### 5. Batch Processing
@@ -531,10 +603,10 @@ mrl/
 │       ├── 2025-12-05_ROOT_CAUSE_ANALYSIS.md  # Why validation loss was wrong
 │       └── 2025-12-03_TRAINING_REPORT.md  # Initial training report
 │
-├── checkpoints/                    # Model checkpoints (not in repo)
+├── checkpoints/                    # Model checkpoints
 │   └── mrl_redimnet/
-│       ├── best.pt                 # Best model (recommended)
-│       ├── latest.pt               # Latest checkpoint
+│       ├── best.pt                 # ⭐ Download from GitHub Release v1.0.1
+│       ├── latest.pt               # Latest checkpoint (during training)
 │       └── epoch_*.pt              # Per-epoch checkpoints
 ```
 
@@ -682,10 +754,24 @@ This implementation is based on MIT License.
 
 ## ✅ Checklist: Before You Start
 
+### Option A: Use Pre-trained Checkpoint (Quick Start) ⭐
+
+- [ ] PyTorch 2.6+ installed
+- [ ] Download checkpoint from [GitHub Release v1.0.1](https://github.com/sappho192/redimnet-mrl/releases/tag/1.0.1)
+- [ ] **Ready to use!** No training needed
+
+```bash
+# Download and use immediately
+wget https://github.com/sappho192/redimnet-mrl/releases/download/1.0.1/best_2025-12-10_07-20.pt
+# See "30-Second Example" above for usage
+```
+
+### Option B: Train Your Own Model
+
 - [ ] GPU with 12GB+ VRAM available
 - [ ] 100GB+ free disk space
 - [ ] VoxCeleb2 downloaded (or download link ready)
-- [ ] PyTorch 2.9+ installed
+- [ ] PyTorch 2.6+ installed
 - [ ] **Windows**: FFmpeg shared libraries installed (`choco install ffmpeg-shared -y`)
 - [ ] Read [PRETRAINED_GUIDE.md](docs/PRETRAINED_GUIDE.md)
 - [ ] Read [DATA_REQUIREMENTS.md](docs/DATA_REQUIREMENTS.md)
@@ -693,7 +779,7 @@ This implementation is based on MIT License.
 - [ ] **Windows**: Read [TORCHCODEC_WINDOWS_SETUP.md](TORCHCODEC_WINDOWS_SETUP.md)
 - [ ] Config file updated with your data paths
 
-**Ready to start?**
+**Ready to train?**
 ```bash
 cd mrl
 python train.py --config config_5060ti.yaml  # Or config.yaml
@@ -718,7 +804,15 @@ tensorboard --logdir logs/mrl_redimnet
 
 ## 🎉 Quick Results Preview
 
-After training (projection-only, 30 epochs), you'll have:
+**Pre-trained checkpoint available!** Download from [GitHub Release v1.0.1](https://github.com/sappho192/redimnet-mrl/releases/tag/1.0.1)
+
+```bash
+# Download validated checkpoint (no training needed!)
+wget https://github.com/sappho192/redimnet-mrl/releases/download/1.0.1/best_2025-12-10_07-20.pt \
+     -O checkpoints/mrl_redimnet/best.pt
+```
+
+Or train your own (projection-only, 30 epochs):
 
 ```python
 # One model, multiple resolutions
@@ -726,13 +820,13 @@ model = load_trained_mrl('checkpoints/best.pt')
 
 audio = load_audio('test.wav')
 
-# Fast: 64D, ~2x faster, 9.6% EER
+# Fast: 64D, ~2x faster, 9.6% EER, 90.4% accuracy
 emb_fast = model(audio, dim=64)
 
-# Balanced: 128D, ~1.5x faster, 7.6% EER
+# Balanced: 128D, ~1.5x faster, 7.6% EER, 92.4% accuracy
 emb_balanced = model(audio, dim=128)
 
-# Accurate: 256D, baseline speed, 5.6% EER
+# Accurate: 256D, baseline speed, 5.6% EER, 94.4% accuracy
 emb_accurate = model(audio, dim=256)
 
 # Same model, flexible deployment! 🚀

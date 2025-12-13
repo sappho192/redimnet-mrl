@@ -222,6 +222,12 @@ Python:
 
 **TL;DR**: Projection-only training (frozen backbone) is now the validated and recommended approach. Backbone fine-tuning degrades performance by 50%.
 
+**🎁 Pre-trained Checkpoint Released**: Download validated checkpoint from [GitHub Release v1.0.1](https://github.com/sappho192/redimnet-mrl/releases/tag/1.0.1)
+- Epoch 14, projection-only training
+- 7.2% average EER on VoxCeleb test
+- Ready to use, no training required
+- 21.46 MB file size
+
 #### Validation & Analysis
 
 - **EER validation system**: Implemented proper speaker verification evaluation
@@ -304,6 +310,16 @@ training:
 - All dimensions show good speaker discrimination
 
 ### Added
+
+#### Pre-trained Checkpoint Release 🎁
+
+- **GitHub Release v1.0.1**: Pre-trained MRL checkpoint now available for download
+  - `best.pt`: Epoch 14 checkpoint (projection-only training)
+  - Performance: 7.2% average EER on VoxCeleb test
+  - Size: 21.46 MB
+  - Download: `wget https://github.com/sappho192/redimnet-mrl/releases/download/1.0.1/best_2025-12-10_07-20.pt`
+  - Ready to use immediately - no training required
+  - Validated on 500 real VoxCeleb verification pairs
 
 #### Evaluation & Testing Tools
 

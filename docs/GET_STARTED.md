@@ -1,6 +1,33 @@
 # Get Started with ReDimNet-MRL
 
-**Welcome!** This is your **3-step guide** to training multi-resolution speaker embeddings.
+**Welcome!** Choose your path:
+
+## 🚀 Quick Start (No Training) - Recommended ⭐
+
+**Use our pre-trained checkpoint** - ready to use immediately!
+
+```bash
+# 1. Install PyTorch
+pip install torch torchaudio
+
+# 2. Clone and download checkpoint
+git clone https://github.com/sappho192/redimnet-mrl.git
+cd redimnet-mrl
+mkdir -p checkpoints/mrl_redimnet
+wget https://github.com/sappho192/redimnet-mrl/releases/download/1.0.1/best_2025-12-10_07-20.pt \
+     -O checkpoints/mrl_redimnet/best.pt
+
+# 3. Use immediately!
+# See "30-Second Example" in README.md
+```
+
+**Performance**: 7.2% average EER, validated on 500 VoxCeleb pairs.
+
+---
+
+## 🎯 Full Training Guide
+
+**Want to train your own model?** Follow the 3-step guide below.
 
 > [!IMPORTANT]
 > **Training Strategy**: Use projection-only training (frozen backbone) for best results.
