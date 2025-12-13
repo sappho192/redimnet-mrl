@@ -216,19 +216,245 @@ Python:
 
 ---
 
+## [1.0.1] - 2025-12-13 🎯
+
+### Major Changes - Training Strategy Validated ⭐
+
+**TL;DR**: Projection-only training (frozen backbone) is now the validated and recommended approach. Backbone fine-tuning degrades performance by 50%.
+
+#### Validation & Analysis
+
+- **EER validation system**: Implemented proper speaker verification evaluation
+  - `evaluate.py`: EER computation on real VoxCeleb verification pairs
+  - `use_eer_validation: true` in config
+  - `use_eer_for_best_model: true` for checkpoint selection
+  - Generates 500 verification pairs from VoxCeleb test sets
+  - Industry-standard Equal Error Rate (EER) metric
+
+- **Checkpoint testing with real audio**:
+  - `test_checkpoint.py`: Updated to use real VoxCeleb audio (was synthetic)
+  - `compare_checkpoints.py`: Side-by-side checkpoint comparison tool
+  - Tests on 500 real verification pairs (250 VoxCeleb1 + 250 VoxCeleb2)
+  - All dimensions evaluated (64D, 128D, 192D, 256D)
+
+#### Training Strategy - BREAKING CHANGE
+
+**Changed from two-stage to projection-only training**:
+
+```yaml
+# OLD (deprecated):
+advanced:
+  freeze_backbone_epochs: 5  # Two-stage training
+training:
+  num_epochs: 100
+
+# NEW (validated):
+advanced:
+  freeze_backbone_epochs: 9999  # Never unfreeze
+training:
+  num_epochs: 30  # Projection-only sufficient
+```
+
+**Evidence**:
+- Epoch 14 (frozen backbone): **7.2% average EER** ✅
+- Epoch 42 (unfrozen backbone): **10.85% average EER** ❌ (50% worse)
+- All dimensions show consistent degradation with backbone unfreezing
+- See validation reports for detailed analysis
+
+#### Validation Reports Added
+
+**Comprehensive analysis in `docs/report/`**:
+
+1. **[EER_VALIDATION_RESULTS.md](docs/report/2025-12-09_EER_VALIDATION_RESULTS.md)**
+   - EER tracking over 42 epochs
+   - Stage 1 (frozen): 3.8-4.2% EER (consistent)
+   - Stage 2 (unfrozen): 4.4% → 7.5% EER (degrading)
+   - **Conclusion**: Projection-only training recommended
+
+2. **[CHECKPOINT_COMPARISON_REAL_AUDIO.md](docs/report/2025-12-13_CHECKPOINT_COMPARISON_REAL_AUDIO.md)**
+   - Side-by-side comparison on 500 VoxCeleb pairs
+   - Epoch 14 vs Epoch 42 performance
+   - All dimensions tested with real speaker verification
+   - **Conclusion**: Frozen backbone significantly better
+
+3. **[ROOT_CAUSE_ANALYSIS.md](docs/report/2025-12-05_ROOT_CAUSE_ANALYSIS.md)**
+   - Why validation loss was misleading
+   - Classification vs verification objectives
+   - **Conclusion**: Use EER, not validation loss
+
+4. **[TRAINING_REPORT.md](docs/report/2025-12-03_TRAINING_REPORT.md)**
+   - Initial training analysis
+   - Overfitting patterns identified
+
+### Performance Results - Validated ✅
+
+**Actual measured performance** (projection-only training, 30 epochs):
+
+| Dimension | EER | Accuracy | Speed | Use Case |
+|-----------|-----|----------|-------|----------|
+| 256D | 5.6-7.2% | 94.4% | 1.0x | Maximum accuracy |
+| 192D | 6.0-7.5% | 94.0% | 1.2x | Balanced |
+| 128D | 7.6-9.0% | 92.4% | 1.5x | Mobile/Edge |
+| 64D | 9.6-12.0% | 90.4% | 2.0x | Ultra-fast |
+
+**Notes**:
+- Tested on 500 real VoxCeleb verification pairs
+- ~10x gap from baseline ReDimNet (0.57% EER) due to MRL adaptation
+- Performance sufficient for practical applications
+- All dimensions show good speaker discrimination
+
+### Added
+
+#### Evaluation & Testing Tools
+
+- **EER validation module** (`evaluate.py`):
+  - `generate_verification_pairs()`: Create test pairs from VoxCeleb
+  - `compute_eer()`: Calculate Equal Error Rate
+  - `calculate_eer()`: FAR/FRR computation
+  - `evaluate_mrl_all_dims()`: Multi-dimension evaluation
+  - Supports batch processing and progress tracking
+
+- **Checkpoint comparison tool** (`compare_checkpoints.py`):
+  - Side-by-side checkpoint comparison
+  - Real VoxCeleb audio testing
+  - Per-dimension EER reporting
+  - Statistical significance analysis
+
+- **Updated test_checkpoint.py**:
+  - Real audio testing (removed misleading synthetic audio tests)
+  - EER evaluation integration
+  - Multi-dimension verification performance
+  - Warning about synthetic audio being unreliable
+
+### Changed
+
+#### Training Configuration
+
+- **Default epochs**: 100 → **30** (projection-only sufficient)
+- **Backbone freezing**: 5 epochs → **9999** (never unfreeze)
+- **Best model selection**: Validation loss → **EER** (proper metric)
+- **Train type**: 'ft_lm' → **'ptn'** (use pre-trained weights directly)
+
+#### Documentation - Major Updates
+
+**README.md**:
+- Added "Training Strategy Validated" banner
+- Updated training timeline (7 days → 2 days)
+- Added "Validation Reports" section with links
+- Updated performance table with actual results
+- Rewrote "Two-Stage Training" → "Projection-Only Training"
+- Added evidence links throughout
+- Updated status to 1.0.1
+
+**GET_STARTED.md**:
+- Added projection-only training notice
+- Updated expected training output with EER values
+- Changed training duration (7 days → 2 days)
+- Updated performance expectations with validated numbers
+- Added "why backbone stays frozen" explanation
+
+**Config files**:
+- Updated `config.yaml` with validated settings
+- Added EER validation configuration
+- Changed default epochs to 30
+- Set `freeze_backbone_epochs: 9999`
+
+### Fixed
+
+- **Misleading synthetic audio tests**: Replaced with real VoxCeleb evaluation
+  - Synthetic audio tests showed opposite results (misleading)
+  - Real audio tests show correct performance (reliable)
+  - Updated all testing scripts
+
+- **Model checkpoint loading**: Fixed `torch.load()` for PyTorch 2.6+
+  - Added `weights_only=False` for trusted checkpoints
+  - Handles numpy scalar unpickling
+
+### Deprecated
+
+- **Two-stage training** (backbone unfreezing):
+  - Evidence shows 50% performance degradation
+  - No longer recommended
+  - Configuration still supported but discouraged
+  - See validation reports for why
+
+### Training Improvements
+
+**Validated training approach**:
+- ✅ Use pretrained ReDimNet-b2 (ptn variant)
+- ✅ Keep backbone frozen throughout training
+- ✅ Train only MRL projection (~264K params, 5.3% of total)
+- ✅ Monitor EER, not validation loss
+- ✅ 30 epochs sufficient for convergence
+- ✅ Faster training (2 days vs 7 days)
+- ✅ Better generalization to unseen speakers
+
+**Why projection-only works**:
+1. Pretrained backbone already excellent (0.57% baseline EER)
+2. MRL projection learns multi-resolution mappings
+3. Frozen backbone prevents harmful overfitting
+4. Training objective (classification) misaligned with evaluation (verification)
+5. Fine-tuning specializes to training speakers, fails on new speakers
+
+### Key Takeaways
+
+1. **✅ Projection-only training validated**: 7.2% average EER
+2. **❌ Backbone fine-tuning degrades performance**: 10.85% average EER (50% worse)
+3. **✅ Use EER for evaluation**: Classification loss is misleading
+4. **✅ 30 epochs sufficient**: Faster convergence
+5. **✅ Real audio testing essential**: Synthetic tests unreliable
+
+### Migration Guide
+
+**If you're using old two-stage training**:
+
+1. Update `config.yaml`:
+   ```yaml
+   advanced:
+     freeze_backbone_epochs: 9999  # Was: 5
+   training:
+     num_epochs: 30  # Was: 100
+   evaluation:
+     use_eer_validation: true  # New
+     use_eer_for_best_model: true  # New
+   ```
+
+2. Use EER for monitoring:
+   - Watch "Val EER" in logs (not "Val Loss")
+   - Best checkpoint selected based on lowest EER
+   - Validation loss is no longer meaningful
+
+3. Expect different performance:
+   - Better generalization to new speakers
+   - Lower EER on test sets
+   - Faster training completion
+
+### Known Issues
+
+- None reported for projection-only training approach
+
+### Testing
+
+- **Validation dataset**: 500 VoxCeleb verification pairs
+- **Test duration**: ~4 minutes per checkpoint (all dimensions)
+- **Hardware tested**: RTX 5060 Ti 16GB, CUDA 11.8+
+- **Reproducible**: Seeded pair generation
+
+---
+
 ## [Unreleased]
 
 ### Planned Features
 
-- **Evaluation tools**: Multi-dimension EER evaluation
-- **Benchmark suite**: Comprehensive performance testing
 - **LoRA support**: Parameter-efficient fine-tuning (research)
 - **Distributed training**: Multi-GPU support
 - **Model zoo**: Pre-trained MRL checkpoints
 - **Deployment tools**: ONNX export, TorchScript
 - **Additional datasets**: LibriSpeech, Common Voice support
+- **Cross-lingual evaluation**: CN-Celeb, other languages
 
 ---
 
-[0.1.1]: https://github.com/yourusername/redimnet-mrl/releases/tag/v0.1.1
-[0.1.0]: https://github.com/yourusername/redimnet-mrl/releases/tag/v0.1.0
+[1.0.1]: https://github.com/sappho192/redimnet-mrl/releases/tag/1.0.1
+[0.1.1]: https://github.com/sappho192/redimnet-mrl/releases/tag/0.1.1
+[0.1.0]: https://github.com/sappho192/redimnet-mrl/releases/tag/0.1.0

@@ -392,7 +392,6 @@ evaluation:
 ```
 
 **GPU-specific configs**:
-- `config_5060ti.yaml` - Optimized for RTX 5060 Ti 16GB
 - `config.yaml` - General purpose, works on 12GB+ GPUs
 
 ---
@@ -708,7 +707,7 @@ tensorboard --logdir logs/mrl_redimnet
 ---
 
 **Status**: ✅ Production Ready (Training Strategy Validated)
-**Version**: 0.2.0
+**Version**: 1.0.1
 **Last Updated**: 2025-12-13
 **Training**: Projection-only approach validated with real audio testing
 **Performance**: 7.2% average EER on VoxCeleb test (see [validation reports](docs/report/))
