@@ -794,13 +794,13 @@ tensorboard --logdir logs/mrl_redimnet
 
 ---
 
-**Status**: ✅ Production Ready (Training Strategy Validated)
-**Version**: 1.0.1
-**Last Updated**: 2025-12-13
-**Training**: Projection-only approach validated with real audio testing
-**Performance**: 7.2% average EER on VoxCeleb test (see [validation reports](docs/report/))
-**Tested On**: PyTorch 2.6+, CUDA 11.8+, Linux/macOS/Windows
-**Windows**: Requires `ffmpeg-shared` for torchcodec (see [setup guide](TORCHCODEC_WINDOWS_SETUP.md))
+**Status**: ✅ Production Ready (Training Strategy Validated)  
+**Version**: 1.0.1  
+**Last Updated**: 2025-12-13  
+**Training**: Projection-only approach validated with real audio testing  
+**Performance**: 7.2% average EER on VoxCeleb test (see [validation reports](docs/report/))  
+**Tested On**: PyTorch 2.6+, CUDA 11.8+, Linux/macOS/Windows  
+**Windows**: Requires `ffmpeg-shared` for torchcodec (see [setup guide](TORCHCODEC_WINDOWS_SETUP.md))  
 
 ---
 
