@@ -6,6 +6,7 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "numpy>=1.20.0",
+    "optuna>=4.6.0",
     "pyannote-audio>=4.0.1",
     "pyannote-metrics>=4.0.0",
     "python-dotenv>=1.2.1",
