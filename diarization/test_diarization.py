@@ -76,6 +76,51 @@ def load_diar_config(config_path=None):
         print(f"Warning: Could not load diarization config: {e}")
         return {}
 
+
+def apply_segmentation_params(pipeline, config=None, verbose=False):
+    """
+    Apply segmentation parameters from config to pipeline.
+
+    Args:
+        pipeline: pyannote SpeakerDiarization pipeline
+        config: Configuration dict (will load default if None)
+        verbose: Print parameter info
+    """
+    if config is None:
+        config = load_diar_config()
+
+    pipeline_config = config.get('pipeline', {})
+    segmentation_config = pipeline_config.get('segmentation', {})
+
+    # Get parameters with defaults
+    threshold = segmentation_config.get('threshold', 0.5)
+    min_duration_on = segmentation_config.get('min_duration_on', 0.0)
+    min_duration_off = segmentation_config.get('min_duration_off', 0.0)
+
+    # Check if model uses powerset (determines available parameters)
+    is_powerset = False
+    if hasattr(pipeline, '_segmentation') and hasattr(pipeline._segmentation, 'model'):
+        is_powerset = pipeline._segmentation.model.specifications.powerset
+
+    # Apply parameters based on model type
+    if hasattr(pipeline, 'segmentation'):
+        if is_powerset:
+            # Powerset models only have min_duration_off
+            if hasattr(pipeline.segmentation, 'min_duration_off'):
+                pipeline.segmentation.min_duration_off = min_duration_off
+                if verbose:
+                    print(f"  Segmentation: min_duration_off={min_duration_off}s (powerset model)")
+        else:
+            # Non-powerset models have threshold and min_duration_off
+            if hasattr(pipeline.segmentation, 'threshold'):
+                pipeline.segmentation.threshold = threshold
+                if verbose:
+                    print(f"  Segmentation: threshold={threshold}")
+            if hasattr(pipeline.segmentation, 'min_duration_off'):
+                pipeline.segmentation.min_duration_off = min_duration_off
+                if verbose:
+                    print(f"  Segmentation: min_duration_off={min_duration_off}s")
+
 def load_rttm_manual(rttm_path, uri='audio'):
     """Manually parse RTTM file to create Annotation object."""
     annotation = Annotation(uri=uri)
@@ -327,10 +372,15 @@ def run_diarization(method_name, clustering_method, audio_file, reference_rttm=N
         # Override embedding
         pipeline._embedding = embedding_model
 
+        # Load config
+        diar_config = load_diar_config()
+
+        # Apply segmentation parameters from config
+        apply_segmentation_params(pipeline, config=diar_config, verbose=True)
+
         # Override clustering if hierarchical
         if clustering_method == 'hierarchical':
             # Load config for thresholds
-            diar_config = load_diar_config()
             clustering_config = diar_config.get('clustering', {})
             coarse_threshold = clustering_config.get('coarse_threshold', 0.6)
             refined_threshold = clustering_config.get('refined_threshold', 0.4)

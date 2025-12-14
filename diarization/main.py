@@ -18,6 +18,11 @@ Usage:
         --coarse-threshold 0.6 \\
         --refined-threshold 0.4 \\
         --boundary-threshold 0.7
+
+    # Custom segmentation parameters
+    # Note: speaker-diarization-community-1 only supports min_duration_off
+    python main.py --audio sample.wav \\
+        --segmentation-min-duration-off 0.1  # Merge segments with <0.1s gaps
 """
 
 import argparse
@@ -121,6 +126,9 @@ Examples:
   # Standard clustering (no hierarchical)
   python main.py --audio audio.wav --clustering-method pyannote_default
 
+  # Custom segmentation (merge short silences)
+  python main.py --audio audio.wav --segmentation-min-duration-off 0.1
+
   # Save visualization
   python main.py --audio audio.wav --visualize --vis-output diarization.png
         """
@@ -197,6 +205,27 @@ Examples:
         '--segmentation',
         default='pyannote/speaker-diarization-community-1',
         help='Pyannote segmentation model (default: pyannote/speaker-diarization-community-1)'
+    )
+    parser.add_argument(
+        '--segmentation-threshold',
+        type=float,
+        default=None,
+        help='VAD threshold for non-powerset models only (default: from config or 0.5). '
+             'Ignored for powerset models like speaker-diarization-community-1'
+    )
+    parser.add_argument(
+        '--segmentation-min-duration-on',
+        type=float,
+        default=None,
+        help='Minimum speech segment duration in seconds (default: from config or 0.0). '
+             'Applied during post-processing'
+    )
+    parser.add_argument(
+        '--segmentation-min-duration-off',
+        type=float,
+        default=None,
+        help='Minimum silence duration between segments in seconds (default: from config or 0.0). '
+             'Main tunable parameter for powerset models'
     )
 
     # Hardware arguments
@@ -309,6 +338,8 @@ def main():
     if diar_config:
         clustering_config = diar_config.get('clustering', {})
         embedding_config = diar_config.get('embedding', {})
+        pipeline_config = diar_config.get('pipeline', {})
+        segmentation_config = pipeline_config.get('segmentation', {})
 
         # Apply clustering defaults
         if args.clustering_method is None:
@@ -323,6 +354,14 @@ def main():
         # Apply embedding defaults
         if args.embedding_dim is None:
             args.embedding_dim = embedding_config.get('dimension', 256)
+
+        # Apply segmentation defaults
+        if args.segmentation_threshold is None:
+            args.segmentation_threshold = segmentation_config.get('threshold', 0.5)
+        if args.segmentation_min_duration_on is None:
+            args.segmentation_min_duration_on = segmentation_config.get('min_duration_on', 0.0)
+        if args.segmentation_min_duration_off is None:
+            args.segmentation_min_duration_off = segmentation_config.get('min_duration_off', 0.0)
 
         # Apply checkpoint/config paths if not specified
         if args.checkpoint is None and 'checkpoint_path' in embedding_config:
@@ -343,6 +382,12 @@ def main():
             args.boundary_threshold = 0.7
         if args.embedding_dim is None:
             args.embedding_dim = 256
+        if args.segmentation_threshold is None:
+            args.segmentation_threshold = 0.5
+        if args.segmentation_min_duration_on is None:
+            args.segmentation_min_duration_on = 0.0
+        if args.segmentation_min_duration_off is None:
+            args.segmentation_min_duration_off = 0.0
 
     # Validate audio file
     audio_path = Path(args.audio)
@@ -410,6 +455,38 @@ def main():
         finally:
             # Restore original torch.load
             torch.load = original_load
+
+        # Apply segmentation parameters
+        # Note: pyannote pipelines have different parameters depending on model type
+        # - Powerset models (like speaker-diarization-community-1): only min_duration_off
+        # - Non-powerset models: threshold and min_duration_off
+        print(f"  Segmentation parameters:")
+
+        # Check if model uses powerset (determines available parameters)
+        is_powerset = False
+        if hasattr(pipeline, '_segmentation') and hasattr(pipeline._segmentation, 'model'):
+            is_powerset = pipeline._segmentation.model.specifications.powerset
+            print(f"    Model type: {'powerset (multi-label)' if is_powerset else 'binary'}")
+
+        # Apply parameters based on model type
+        if hasattr(pipeline, 'segmentation'):
+            if is_powerset:
+                # Powerset models only have min_duration_off
+                if hasattr(pipeline.segmentation, 'min_duration_off'):
+                    pipeline.segmentation.min_duration_off = args.segmentation_min_duration_off
+                    print(f"    Min duration off: {args.segmentation_min_duration_off}s")
+                print(f"    [INFO] Powerset models don't have threshold parameter")
+                print(f"    [INFO] VAD is learned by the model, not controlled by threshold")
+            else:
+                # Non-powerset models have threshold and min_duration_off
+                if hasattr(pipeline.segmentation, 'threshold'):
+                    pipeline.segmentation.threshold = args.segmentation_threshold
+                    print(f"    VAD threshold: {args.segmentation_threshold}")
+                if hasattr(pipeline.segmentation, 'min_duration_off'):
+                    pipeline.segmentation.min_duration_off = args.segmentation_min_duration_off
+                    print(f"    Min duration off: {args.segmentation_min_duration_off}s")
+        else:
+            print("    WARNING: Could not access segmentation parameters")
 
         # Override embedding model
         pipeline._embedding = embedding_model

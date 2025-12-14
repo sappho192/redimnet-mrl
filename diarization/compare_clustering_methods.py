@@ -60,6 +60,51 @@ def load_diar_config(config_path=None):
         return {}
 
 
+def apply_segmentation_params(pipeline, config=None, verbose=False):
+    """
+    Apply segmentation parameters from config to pipeline.
+
+    Args:
+        pipeline: pyannote SpeakerDiarization pipeline
+        config: Configuration dict (will load default if None)
+        verbose: Print parameter info
+    """
+    if config is None:
+        config = load_diar_config()
+
+    pipeline_config = config.get('pipeline', {})
+    segmentation_config = pipeline_config.get('segmentation', {})
+
+    # Get parameters with defaults
+    threshold = segmentation_config.get('threshold', 0.5)
+    min_duration_on = segmentation_config.get('min_duration_on', 0.0)
+    min_duration_off = segmentation_config.get('min_duration_off', 0.0)
+
+    # Check if model uses powerset (determines available parameters)
+    is_powerset = False
+    if hasattr(pipeline, '_segmentation') and hasattr(pipeline._segmentation, 'model'):
+        is_powerset = pipeline._segmentation.model.specifications.powerset
+
+    # Apply parameters based on model type
+    if hasattr(pipeline, 'segmentation'):
+        if is_powerset:
+            # Powerset models only have min_duration_off
+            if hasattr(pipeline.segmentation, 'min_duration_off'):
+                pipeline.segmentation.min_duration_off = min_duration_off
+                if verbose:
+                    print(f"  Segmentation: min_duration_off={min_duration_off}s (powerset model)")
+        else:
+            # Non-powerset models have threshold and min_duration_off
+            if hasattr(pipeline.segmentation, 'threshold'):
+                pipeline.segmentation.threshold = threshold
+                if verbose:
+                    print(f"  Segmentation: threshold={threshold}")
+            if hasattr(pipeline.segmentation, 'min_duration_off'):
+                pipeline.segmentation.min_duration_off = min_duration_off
+                if verbose:
+                    print(f"  Segmentation: min_duration_off={min_duration_off}s")
+
+
 def measure_memory():
     """Measure current GPU memory usage (if available)."""
     if torch.cuda.is_available():
@@ -107,6 +152,9 @@ def run_diarization_standard(
         embedding=None,
     )
     pipeline._embedding = embedding_model
+
+    # Apply segmentation parameters from config
+    apply_segmentation_params(pipeline, verbose=verbose)
 
     # Run diarization
     start_time = time.time()
@@ -188,6 +236,9 @@ def run_diarization_hierarchical(
     )
     pipeline._embedding = embedding_model
 
+    # Apply segmentation parameters from config
+    apply_segmentation_params(pipeline, config=diar_config, verbose=verbose)
+
     # Override clustering with hierarchical MRL
     clustering = PyannoteStyleClustering(
         method='hierarchical_mrl',
@@ -199,7 +250,7 @@ def run_diarization_hierarchical(
     pipeline.clustering = clustering
 
     if verbose:
-        print(f"  Thresholds: coarse={coarse_threshold}, refined={refined_threshold}, boundary={boundary_threshold}")
+        print(f"  Clustering thresholds: coarse={coarse_threshold}, refined={refined_threshold}, boundary={boundary_threshold}")
 
     # Run diarization
     start_time = time.time()

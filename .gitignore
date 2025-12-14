@@ -5,6 +5,7 @@ diarization/input/*.wav
 diarization/input/*.rttm
 diarization/output/
 diarization/visualization/
+diarization/temp/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

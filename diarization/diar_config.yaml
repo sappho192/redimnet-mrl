@@ -64,6 +64,34 @@ pipeline:
   # Will auto-detect if not specified
   device: auto
 
+  # Segmentation (VAD) parameters
+  # These control voice activity detection behavior
+  #
+  # IMPORTANT: Available parameters depend on the segmentation model type:
+  # - Powerset models (e.g., speaker-diarization-community-1):
+  #   Only min_duration_off is available. VAD is learned by the model.
+  # - Binary/multilabel models (e.g., older segmentation models):
+  #   Both threshold and min_duration_off are available.
+  segmentation:
+    # VAD threshold (0.0-1.0) - ONLY for non-powerset models
+    # Lower values = more speech detected (may include non-speech)
+    # Higher values = more conservative (may miss some speech)
+    # Range: 0.3-0.7, Default: 0.5
+    # Note: Ignored for powerset models like speaker-diarization-community-1
+    threshold: 0.5
+
+    # Minimum duration of speech segments (seconds)
+    # Segments shorter than this will be filtered out
+    # Default: 0.0 (no filtering)
+    # Note: Applied during post-processing, not in real-time
+    min_duration_on: 0.0
+
+    # Minimum duration of silence between speech segments (seconds)
+    # Silences shorter than this will merge adjacent segments
+    # Default: 0.0 (no merging)
+    # This is the main tunable parameter for powerset models
+    min_duration_off: 0.0
+
 # =============================================================================
 # Alternative Configurations for Different Scenarios
 # =============================================================================
