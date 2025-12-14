@@ -1,3 +1,11 @@
+# diarization/input/
+diarization/input/*.flac
+diarization/input/*.wav
+diarization/input/*.wav
+diarization/input/*.rttm
+diarization/output/
+diarization/visualization/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]

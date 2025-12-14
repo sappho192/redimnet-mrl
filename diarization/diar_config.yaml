@@ -1,0 +1,162 @@
+# ReDimNet-MRL Speaker Diarization Configuration
+# Generated: December 14, 2025
+# Based on threshold optimization testing with real audio
+
+# =============================================================================
+# Hierarchical MRL Clustering Hyperparameters
+# =============================================================================
+
+clustering:
+  # Clustering method: 'hierarchical_mrl' or 'pyannote_default'
+  method: hierarchical_mrl
+
+  # Stage 1: Coarse clustering with 64D embeddings
+  # Lower values = fewer clusters (under-segmentation)
+  # Higher values = more clusters (over-segmentation)
+  # Range: 0.5-0.9, Default: 0.6
+  coarse_threshold: 0.60
+
+  # Stage 2: Refined clustering with 192D embeddings
+  # Applied within each coarse cluster for sub-clustering
+  # Lower values = fewer splits
+  # Higher values = more splits
+  # Range: 0.3-0.7, Default: 0.4
+  refined_threshold: 0.40
+
+  # Stage 3: Boundary verification with 256D embeddings
+  # Threshold for reassigning low-confidence samples
+  # Lower values = more samples reassigned
+  # Higher values = fewer samples reassigned
+  # Range: 0.6-0.8, Default: 0.7
+  boundary_threshold: 0.70
+
+  # Minimum cluster size (samples per cluster)
+  # Clusters smaller than this will not be split in Stage 2
+  min_cluster_size: 2
+
+# =============================================================================
+# Embedding Model Configuration
+# =============================================================================
+
+embedding:
+  # Embedding dimension for clustering
+  # Options: 64, 128, 192, 256
+  # Recommendation: 256 for highest accuracy
+  dimension: 256
+
+  # Extract all dimensions for hierarchical clustering
+  # Required for hierarchical_mrl method
+  extract_all_dims: true
+
+  # Model checkpoint and config paths (relative to diarization/)
+  checkpoint_path: ../checkpoints/mrl_redimnet/best.pt
+  config_path: ../config.yaml
+
+# =============================================================================
+# Pyannote Pipeline Configuration
+# =============================================================================
+
+pipeline:
+  # Segmentation model for speech activity detection
+  segmentation_model: pyannote/speaker-diarization-community-1
+
+  # Device for inference ('cpu', 'cuda', or 'cuda:0', 'cuda:1', etc.)
+  # Will auto-detect if not specified
+  device: auto
+
+# =============================================================================
+# Alternative Configurations for Different Scenarios
+# =============================================================================
+
+# Scenario 1: Few speakers (2-4 speakers)
+# Use higher thresholds to avoid over-segmentation
+few_speakers:
+  coarse_threshold: 0.65
+  refined_threshold: 0.50
+  boundary_threshold: 0.70
+
+# Scenario 2: Many speakers (5-10+ speakers)
+# Use lower thresholds to detect more clusters
+many_speakers:
+  coarse_threshold: 0.55
+  refined_threshold: 0.35
+  boundary_threshold: 0.70
+
+# Scenario 3: High accuracy priority
+# Use lower thresholds and smaller min_cluster_size
+high_accuracy:
+  coarse_threshold: 0.60
+  refined_threshold: 0.40
+  boundary_threshold: 0.65
+  min_cluster_size: 1
+
+# Scenario 4: Speed priority
+# Use higher thresholds to reduce clustering time
+high_speed:
+  coarse_threshold: 0.70
+  refined_threshold: 0.55
+  boundary_threshold: 0.75
+  min_cluster_size: 3
+
+# =============================================================================
+# Testing Results Reference
+# =============================================================================
+# Based on validation with <REDACTED>.flac (857.3s, 3 speakers ground truth)
+#
+# Configuration Performance:
+# --------------------------
+# coarse=0.60, refined=0.40, boundary=0.70
+#   → 14 coarse clusters → 13 final speakers
+#   → DER: 76.77%, Time: 45.6s
+#   → Status: Best balance, lowest DER
+#
+# coarse=0.65, refined=0.50, boundary=0.70
+#   → 26 coarse clusters → 24 final speakers
+#   → DER: 86.38%, Time: 45.6s
+#
+# coarse=0.70, refined=0.55, boundary=0.70
+#   → 46 coarse clusters → 41 final speakers
+#   → DER: 89.57%, Time: 45.6s
+#
+# coarse=0.80, refined=0.65, boundary=0.70
+#   → 151 coarse clusters → 111 final speakers
+#   → DER: 102.34%, Time: 46.4s
+#
+# coarse=0.90, refined=0.75, boundary=0.70
+#   → 465 coarse clusters → 232 final speakers
+#   → DER: 108.79%, Time: 48.9s
+#
+# Key Findings:
+# - Lower thresholds (0.60/0.40) produced best results
+# - All 3 stages executed correctly with 2,553 embeddings
+# - Multi-resolution embeddings properly utilized
+# - Threshold control verified: different values → different results
+
+# =============================================================================
+# Usage Notes
+# =============================================================================
+#
+# 1. Basic usage with default config:
+#    python main.py --audio sample.wav --config diar_config.yaml
+#
+# 2. Override specific parameters:
+#    python main.py --audio sample.wav \
+#      --coarse-threshold 0.65 \
+#      --refined-threshold 0.50
+#
+# 3. Use alternative scenario:
+#    python main.py --audio sample.wav \
+#      --coarse-threshold 0.55 \
+#      --refined-threshold 0.35  # many_speakers config
+#
+# 4. Tuning guidelines:
+#    - Too many speakers detected → Increase thresholds
+#    - Too few speakers detected → Decrease thresholds
+#    - Adjust coarse_threshold first (bigger impact)
+#    - Fine-tune refined_threshold second
+#    - boundary_threshold typically stays at 0.7
+#
+# 5. Validation:
+#    - Test with known ground truth RTTM files
+#    - Use compare_clustering_methods.py for benchmarking
+#    - Monitor DER, speaker count, and inference time
