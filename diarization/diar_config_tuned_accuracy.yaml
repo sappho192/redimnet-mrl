@@ -1,0 +1,51 @@
+# ReDimNet-MRL Speaker Diarization Configuration - Accuracy-Optimized (Lowest DER)
+# Generated: 2025-12-17 16:50:11
+# Hyperparameter Optimization Results:
+#   Trial: 27
+#   DER: 58.34%
+#   Inference Time: 159.07s
+#   Speaker Count MAE: 0.82
+#   Pareto Solution: Accuracy-Optimized (Lowest DER)
+#
+# Tuned Parameters:
+#   coarse_threshold: 0.3781
+#   refined_threshold: 0.3456
+#   boundary_threshold: 0.7675
+#   min_duration_off: 0.3049
+
+clustering:
+  method: hierarchical_mrl
+  coarse_threshold: 0.3781308367009832
+  refined_threshold: 0.3455683946699503
+  boundary_threshold: 0.7674627669116416
+  min_cluster_size: 2
+embedding:
+  dimension: 256
+  extract_all_dims: true
+  checkpoint_path: ../checkpoints/mrl_redimnet/best.pt
+  config_path: ../config.yaml
+pipeline:
+  segmentation_model: pyannote/speaker-diarization-community-1
+  device: auto
+  segmentation:
+    threshold: 0.5
+    min_duration_on: 0.0
+    min_duration_off: 0.30494047939974134
+few_speakers:
+  coarse_threshold: 0.65
+  refined_threshold: 0.5
+  boundary_threshold: 0.7
+many_speakers:
+  coarse_threshold: 0.55
+  refined_threshold: 0.35
+  boundary_threshold: 0.7
+high_accuracy:
+  coarse_threshold: 0.6
+  refined_threshold: 0.4
+  boundary_threshold: 0.65
+  min_cluster_size: 1
+high_speed:
+  coarse_threshold: 0.7
+  refined_threshold: 0.55
+  boundary_threshold: 0.75
+  min_cluster_size: 3

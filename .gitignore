@@ -6,6 +6,8 @@ diarization/input/*.rttm
 diarization/output/
 diarization/visualization/
 diarization/temp/
+diarization/optuna_study.db
+diarization/optuna_checkpoint.pkl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
